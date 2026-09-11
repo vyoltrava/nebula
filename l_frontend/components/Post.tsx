@@ -1154,7 +1154,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
           {/* 🕒 Дата выкладки + просмотры — квадратный блок со скруглёнными углами, жёстко в правом нижнем углу карточки */}
           {(created_at || views_count !== undefined) && (
             <div className="absolute bottom-2 right-2 z-[3]">
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 px-2 py-0.5 text-[10px] text-gray-500 dark:text-white/40 leading-none">
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 px-2 py-1 text-[10px] text-gray-500 dark:text-white/40 leading-none">
                 {created_at && (
                   <>
                     <Clock3 size={11} className="shrink-0" />

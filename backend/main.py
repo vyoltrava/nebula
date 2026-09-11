@@ -98,7 +98,7 @@ _role_cache = {}              # role_id -> (timestamp, Role|None)
 _ROLE_CACHE_TTL = 600         # 10 минут
 
 _popular_tags_cache = {}
-_POPULAR_TAGS_TTL = 300  # 5 минут
+_POPULAR_TAGS_TTL = 30  # 30 секунд — чтобы правки тегов отражались быстро
 
 _follow_cache = {}  # (follower_id, followee_id) -> (timestamp, bool)
 _FOLLOW_CACHE_TTL = 60  # 1 минута

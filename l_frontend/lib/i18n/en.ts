@@ -520,6 +520,8 @@ export const en: Dictionary = {
     archiveUnarchiveAll: "Restore all",
     archivePullHint: "Pull down to open archive",
     archiveHide: "Hide archive (open by pulling down)",
+    readAll: "Mark all as read",
+    toArchive: "Archive",
     archiveShowAlways: "Always show archive",
     archiveChatOne: "1 chat",
     archiveChatsN: "{n} chats",

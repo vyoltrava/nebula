@@ -32,7 +32,17 @@ export function RightPanel() {
 
   useEffect(() => {
     load();
-    return onFeedRefresh(() => load());
+    const cleanupFeed = onFeedRefresh(() => load());
+    // 🏷 Теги должны обновляться заметно быстро: перечитываем по фокусу окна
+    //    и раз в 30с (серверный TTL кэша popular-тегов = 30с).
+    const onVisible = () => { if (!document.hidden) load(); };
+    const interval = setInterval(load, 30000);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cleanupFeed();
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   async function follow(userId: number) {

@@ -518,6 +518,8 @@ export const ru: Dictionary = {
     archiveUnarchiveAll: "Разархивировать все",
     archivePullHint: "Потяните вниз, чтобы открыть архив",
     archiveHide: "Скрыть архив (открывать оттягиванием)",
+    readAll: "Прочитать всё",
+    toArchive: "В архив",
     archiveShowAlways: "Показывать архив всегда",
     archiveChatOne: "1 чат",
     archiveChatsN: "{n} чат(ов)",

@@ -1117,7 +1117,7 @@ const confirmPrismKey = async () => {
         )}
         {!loading && !q && archiveLoaded && archivedKeys.size > 0 && activeFolder === "all" && (() => {
           const CARD_H = 76; // высота карточки (p-3 + аватар 48 + p-3)
-          const EASE = "cubic-bezier(.22,1,.36,1)"; // мягкий easeOutQuint-подобный
+          const EASE = "cubic-bezier(.16,1,.3,1)"; // очень мягкий easeOutExpo-подобный
           // В «скрытом» режиме карточка ВСЕГДА смонтирована (не display:none),
           // иначе transition не работает на только что созданном элементе
           // и архив «резко появляется». Спрятанное состояние — height:0,
@@ -1142,14 +1142,14 @@ const confirmPrismKey = async () => {
                 height: visible,
                 opacity,
                 pointerEvents: visible >= CARD_H - 6 ? "auto" : "none",
-                transition: follows ? "none" : `height 0.5s ${EASE}, opacity 0.45s ${EASE}, transform 0.5s ${EASE}`,
+                transition: follows ? "none" : `height 0.7s ${EASE}, opacity 0.6s ${EASE}, transform 0.7s ${EASE}`,
               }}
             >
               <div
                 className="absolute inset-x-0 top-0"
                 style={{
                   transform: `translateY(${Math.max(visible - CARD_H, 0)}px)`,
-                  transition: follows ? "none" : `transform 0.5s ${EASE}`,
+                  transition: follows ? "none" : `transform 0.7s ${EASE}`,
                 }}
               >
                 <SwipeableChatItem
@@ -1582,7 +1582,7 @@ const confirmPrismKey = async () => {
                 <>
                   {/* 📌 Закрепить/открепить канал */}
                   <button
-                    onClick={async () => { await toggleChannelPin(menuChat.id); setActiveChatMenu(null); setMenuPosition(null); }}
+                    onClick={() => { setActiveChatMenu(null); setMenuPosition(null); void toggleChannelPin(menuChat.id); }}
                     className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
                   >
                     {menuChat.pinned ? <PinOff size={16} className="text-yellow-600 dark:text-yellow-400" /> : <Pin size={16} className="text-[#8b5cf6]" />}
@@ -1590,7 +1590,7 @@ const confirmPrismKey = async () => {
                   </button>
                   {/* 🔕 Мьют канала */}
                   <button
-                    onClick={async () => { await toggleChannelMute(menuChat.id, !!menuChat.muted); setActiveChatMenu(null); setMenuPosition(null); }}
+                    onClick={() => { setActiveChatMenu(null); setMenuPosition(null); void toggleChannelMute(menuChat.id, !!menuChat.muted); }}
                     className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
                   >
                     {menuChat.muted
@@ -1599,17 +1599,17 @@ const confirmPrismKey = async () => {
                   </button>
                   {/* Прочитать всё */}
                   <button
-                    onClick={async () => { await markChannelRead(menuChat.id); setActiveChatMenu(null); setMenuPosition(null); }}
+                    onClick={() => { setActiveChatMenu(null); setMenuPosition(null); void markChannelRead(menuChat.id); }}
                     className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
                   >
-                    <CheckCheck size={16} className="text-sky-600 dark:text-sky-400" /> Прочитать всё
+                    <CheckCheck size={16} className="text-sky-600 dark:text-sky-400" /> {t("messages.readAll")}
                   </button>
                   {/* 🗄️ В архив */}
                   <button
                     onClick={() => { setActiveChatMenu(null); setMenuPosition(null); archiveChatItem(menuChat); }}
                     className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
                   >
-                    <Archive size={16} className="text-[#8b5cf6]" /> В архив
+                    <Archive size={16} className="text-[#8b5cf6]" /> {t("messages.toArchive")}
                   </button>
                   {/* Открыть */}
                   <button
@@ -1644,7 +1644,7 @@ const confirmPrismKey = async () => {
               ) : (
               <>
               <button
-                onClick={() => togglePinChat(menuChat.id, !!menuChat.pinned)}
+                onClick={() => { setActiveChatMenu(null); setMenuPosition(null); togglePinChat(menuChat.id, !!menuChat.pinned); }}
                 className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
               >
                 {menuChat.pinned ? <PinOff size={16} className="text-yellow-600 dark:text-yellow-400" /> : <Pin size={16} className="text-[#8b5cf6]" />}
@@ -1652,13 +1652,15 @@ const confirmPrismKey = async () => {
               </button>
               {/* 🔕 Выключение уведомлений чата прямо из списка */}
               <button
-                onClick={async () => {
-                  try {
-                    await setChatMute(menuChat.id, menuChat.muted ? { minutes: null, forever: false } : { forever: true });
-                    await load();
-                  } catch { /* ignore */ }
+                onClick={() => {
                   setActiveChatMenu(null);
                   setMenuPosition(null);
+                  void (async () => {
+                    try {
+                      await setChatMute(menuChat.id, menuChat.muted ? { minutes: null, forever: false } : { forever: true });
+                      await load();
+                    } catch { /* ignore */ }
+                  })();
                 }}
                 className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
               >
@@ -1668,17 +1670,17 @@ const confirmPrismKey = async () => {
               </button>
               {/* Прочитать всё */}
               <button
-                onClick={async () => { await markChatRead(menuChat.id); setActiveChatMenu(null); setMenuPosition(null); }}
+                onClick={() => { setActiveChatMenu(null); setMenuPosition(null); void markChatRead(menuChat.id); }}
                 className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
               >
-                <CheckCheck size={16} className="text-sky-600 dark:text-sky-400" /> Прочитать всё
+                <CheckCheck size={16} className="text-sky-600 dark:text-sky-400" /> {t("messages.readAll")}
               </button>
               {/* 🗄️ В архив */}
               <button
                 onClick={() => { setActiveChatMenu(null); setMenuPosition(null); archiveChatItem(menuChat); }}
                 className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
               >
-                <Archive size={16} className="text-[#8b5cf6]" /> В архив
+                <Archive size={16} className="text-[#8b5cf6]" /> {t("messages.toArchive")}
               </button>
               <button
                 onClick={() => { 

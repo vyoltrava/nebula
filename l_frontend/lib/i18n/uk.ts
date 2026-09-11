@@ -518,6 +518,8 @@ export const uk = {
     archiveUnarchiveAll: "Розархівувати всі",
     archivePullHint: "Потягніть вниз, щоб відкрити архів",
     archiveHide: "Приховати архів (відкривати потягуванням)",
+    readAll: "Прочитати все",
+    toArchive: "До архіву",
     archiveShowAlways: "Завжди показувати архів",
     archiveChatOne: "1 чат",
     archiveChatsN: "{n} чат(ів)",
