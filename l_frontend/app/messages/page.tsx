@@ -1117,20 +1117,26 @@ const confirmPrismKey = async () => {
         )}
         {!loading && !q && archiveLoaded && archivedKeys.size > 0 && activeFolder === "all" && (archiveHidden ? (archiveRevealed || archivePull > 0) : true) && (() => {
           const CARD_H = 76; // высота карточки (p-3 + аватар 48 + p-3)
+          const EASE = "cubic-bezier(.22,1,.36,1)"; // мягкий easeOutQuint-подобный
           const visible = !archiveHidden ? CARD_H : (archiveRevealed ? CARD_H : Math.min(archivePull, CARD_H));
+          // 🎬 Плавное проявление: карточка растворяется по мере оттягивания
+          const follows = archivePull > 0; // следует за пальцем/мышью — без transition
+          const opacity = !archiveHidden || archiveRevealed ? 1 : Math.min(1, archivePull / (CARD_H * 0.6));
           return (
             <div
               className="overflow-hidden relative z-[5]"
               style={{
                 height: visible,
-                transition: archivePull ? "none" : "height 0.35s cubic-bezier(.2,.8,.3,1)",
+                opacity,
+                pointerEvents: visible >= CARD_H - 6 ? "auto" : "none",
+                transition: follows ? "none" : `height 0.5s ${EASE}, opacity 0.45s ${EASE}`,
               }}
             >
               <div
                 className="absolute inset-x-0 top-0"
                 style={{
                   transform: `translateY(${visible - CARD_H}px)`,
-                  transition: archivePull ? "none" : "transform 0.35s cubic-bezier(.2,.8,.3,1)",
+                  transition: follows ? "none" : `transform 0.5s ${EASE}`,
                 }}
               >
                 <SwipeableChatItem
