@@ -10,4 +10,8 @@
 
 @import "./ios-variables.css";
 @import "./ios-reset.css";
+/* Движок 3D-иконок сайдбара и анимаций (письмо/штамп) —
+   ДОЗагрузочный слой: мастер подключается последним и правит конфликты. */
+@import "./ios-navigation.css";
+@import "./ios-animations.css";
 @import "./ios-master.css";

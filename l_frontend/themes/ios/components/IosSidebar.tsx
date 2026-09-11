@@ -64,7 +64,37 @@ export function IosSidebar() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const aside = document.querySelector("aside") as HTMLElement | null;
+    /**
+     * ЦЕЛЕВОЙ aside — ТОЛЬКО левая навигация оболочки.
+     * Иначе на разных окнах под «кожу» попадают чужие панели:
+     * правая доска (aside.w-80), карточка настроек (sticky rounded), доска IosBoard.
+     */
+    const findNavAside = (): HTMLElement | null => {
+      const list = Array.from(document.querySelectorAll("aside"));
+      /* 1. Уже помеченный — приоритет */
+      const stamped = list.find((a) => a.dataset.iosSidebar === "true");
+      if (stamped) return stamped;
+      /* 2. aside, внутри которого лежат ссылки основной навигации */
+      const withNav = list.find((a) =>
+        a.querySelector(
+          'a[href="/"], a[href^="/messages"], a[href^="/notifications"], a[href^="/bookmarks"], a[href^="/updates"]'
+        )
+      );
+      if (withNav) return withNav;
+      /* 3. Фолбэк: первый aside, не являющийся правой панелью/доской/карточкой */
+      return (
+        list.find(
+          (a) =>
+            !a.matches(
+              '[class*="w-80"], [class*="backdrop-blur"], [class*="sticky"], [data-ios-board]'
+            )
+        ) ??
+        list[0] ??
+        null
+      );
+    };
+
+    const aside = findNavAside();
     if (!aside) return;
 
     aside.dataset.iosSidebar = "true";
