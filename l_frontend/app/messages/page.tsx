@@ -1211,7 +1211,16 @@ const confirmPrismKey = async () => {
                 }}
                 onLongPress={(x, y) => openChatMenuAt(chat.id, x, y)}
               >
-                <div className={`flex items-center gap-3 p-3 md:p-4 border-b transition-all duration-200 cursor-pointer ${chat.muted ? "opacity-60" : ""} border-b-white/10 border-l-4 border-l-[#8b5cf6]/40 hover:bg-gray-100 dark:hover:bg-white/5 ${chat.unread_count > 0 && !chat.muted ? "bg-purple-500/10" : ""}`}>
+                <div
+                  onContextMenu={(e) => {
+                    // 🖱 ПКМ по чату — то же меню, что по трём точкам
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (activeChatMenu === chat.id) return; // Android long-press мог уже открыть
+                    openChatMenuAt(chat.id, e.clientX, e.clientY);
+                  }}
+                  className={`flex items-center gap-3 p-3 md:p-4 border-b transition-all duration-200 cursor-pointer ${chat.muted ? "opacity-60" : ""} border-b-white/10 border-l-4 border-l-[#8b5cf6]/40 hover:bg-gray-100 dark:hover:bg-white/5 ${chat.unread_count > 0 && !chat.muted ? "bg-purple-500/10" : ""}`}
+                >
                   <div className="shrink-0">
                     {chat.avatar_url ? (
                       <Avatar src={chat.avatar_url} name={chat.name} id={chat.id} size={48} />
@@ -1305,7 +1314,15 @@ const confirmPrismKey = async () => {
               }}
               onLongPress={(x, y) => openChatMenuAt(chat.id, x, y)}
             >
-              <div className={`flex items-center gap-3 p-3 md:p-4 border-b transition-all duration-200 cursor-pointer ${
+                            <div
+                onContextMenu={(e) => {
+                  // 🖱 ПКМ по чату — то же меню, что по трём точкам
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (activeChatMenu === chat.id) return; // Android long-press мог уже открыть
+                  openChatMenuAt(chat.id, e.clientX, e.clientY);
+                }}
+                className={`flex items-center gap-3 p-3 md:p-4 border-b transition-all duration-200 cursor-pointer ${
                 chat.muted ? "opacity-60" : ""
               } ${
                 chat.is_prism
