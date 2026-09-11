@@ -28,6 +28,7 @@ body.ios-theme main h2,
 body.ios-theme main h3,
 body.ios-theme main h4 { color: #241d12; }
 
+
 /* ---------- 2. АВАТАРЫ ---------- */
 body.ios-theme[data-ios-page="user"] main img.rounded-full {
   border-radius: 50% !important;
