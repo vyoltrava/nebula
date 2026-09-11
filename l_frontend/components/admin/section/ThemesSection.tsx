@@ -218,34 +218,51 @@ export function ThemesSection({ me }: { me: any }) {
     const token = getToken();
     if (!token) return;
     try {
-      const form = new FormData();
-      form.append("name", t.name);
-      form.append("type", t.type);
-      form.append("colors", JSON.stringify(t.colors));
-      form.append("speed", String(t.speed));
-      form.append("intensity", String(t.intensity));
-      form.append("blur", String(t.blur));
-      form.append("min_level", String((t as EditableTheme).min_level ?? 0));
-      form.append("is_default", String(!!t.is_default));
+      /* ⚠️ Эндпоинт принимает СКАЛЯРНЫЕ query-параметры (FastAPI), а не форму.
+         FormData игнорировался → 422, и тема существовала только в localStorage,
+         поэтому в настройках юзеров новые темы не появлялись. */
+      const params = new URLSearchParams();
+      params.set("name", t.name);
+      params.set("type", t.type);
+      params.set("colors", JSON.stringify(t.colors));
+      params.set("speed", String(t.speed));
+      params.set("intensity", String(t.intensity));
+      params.set("blur", String(t.blur));
+      params.set("min_level", String((t as EditableTheme).min_level ?? 0));
+      params.set("is_default", String(!!t.is_default));
 
       const isExisting = typeof t.id === "number";
-      const url = isExisting
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/themes/${t.id}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/themes`;
+      const base = `${process.env.NEXT_PUBLIC_API_URL}/api/themes`;
+      if (isExisting) params.set("is_active", "true");
 
-      if (isExisting) {
-        form.append("is_active", "true");
-        await fetch(url, {
-          method: "PUT",
+      const res = await fetch(
+        isExisting ? `${base}/${t.id}?${params}` : `${base}?${params}`,
+        {
+          method: isExisting ? "PUT" : "POST",
           headers: { Authorization: `Bearer ${token}` },
-          body: form,
-        });
-      } else {
-        await fetch(url, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: form,
-        });
+        }
+      );
+
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        console.error("Save theme failed:", res.status, d);
+        alert(`Не удалось сохранить тему на сервере: ${d?.detail ?? res.status}`);
+        return;
+      }
+
+      /* После создания у темы появился числовой id — синхронизируем
+         локальный список, чтобы последующие правки шли через PUT. */
+      const saved = await res.json().catch(() => null);
+      if (saved?.id != null && !isExisting) {
+        const custom = JSON.parse(localStorage.getItem("custom_themes") || "[]");
+        const idx = custom.findIndex((x: ThemeConfig) => String(x.id) === String(t.id));
+        if (idx >= 0) {
+          custom[idx] = { ...custom[idx], id: saved.id };
+          localStorage.setItem("custom_themes", JSON.stringify(custom));
+        }
+        setThemes((prev) =>
+          prev.map((x) => (String(x.id) === String(t.id) ? { ...x, id: saved.id } : x))
+        );
       }
     } catch (e) {
       console.error("Save to backend failed:", e);

@@ -89,89 +89,51 @@ export default function AdminThemesPage() {
     const token = getToken();
     if (token) {
       try {
-        const form = new FormData();
-        form.append("enabled", String(next));
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/themes/settings`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: form,
-        });
-      } catch {}
-    }
-  }
+        /* ⚠️ ндпоинт принимает СЯЫ query-параметры (FastAPI), а не форму.
+         FormData игнорировался → 422, и тема существовала только в localStorage,
+         поэтому в настройках юзеров новые темы не появлялись. */
+      const params = new URLSearchParams();
+      params.set("name", t.name);
+      params.set("type", t.type);
+      params.set("colors", JSON.stringify(t.colors));
+      params.set("speed", String(t.speed));
+      params.set("intensity", String(t.intensity));
+      params.set("blur", String(t.blur));
+      params.set("min_level", String((t as any).min_level ?? 0));
+      params.set("is_default", String(!!t.is_default));
 
-  function openCreate() {
-    setEditingTheme({
-      id: `custom_${Date.now()}`,
-      name: "",
-      type: "aurora",
-      colors: ["#8b5cf6", "#6366f1", "#0ea5e9"],
-      speed: 24,
-      intensity: 0.22,
-      blur: 80,
-    });
-    setShowEditor(true);
-  }
-
-  function openEdit(t: ThemeConfig) {
-    setEditingTheme({ ...t });
-    setShowEditor(true);
-  }
-
-  function saveTheme() {
-    if (!editingTheme || !editingTheme.name.trim()) {
-      alert("Введите название темы");
-      return;
-    }
-
-    const existing = themes.findIndex(t => t.id === editingTheme.id);
-    const newList = [...themes];
-    if (existing >= 0) {
-      newList[existing] = editingTheme;
-    } else {
-      newList.push(editingTheme);
-    }
-    setThemes(newList);
-    saveCustomThemes(newList);
-    setShowEditor(false);
-    setEditingTheme(null);
-
-    // Попытка сохранить на бэк (если endpoint есть)
-    saveToBackend(editingTheme).catch(() => {});
-  }
-
-  async function saveToBackend(t: ThemeConfig) {
-    const token = getToken();
-    if (!token) return;
-    try {
-      const form = new FormData();
-      form.append("name", t.name);
-      form.append("type", t.type);
-      form.append("colors", JSON.stringify(t.colors));
-      form.append("speed", String(t.speed));
-      form.append("intensity", String(t.intensity));
-      form.append("blur", String(t.blur));
-      form.append("min_level", String((t as any).min_level ?? 0));
-      form.append("is_default", String(!!t.is_default));
-      
       const isExisting = typeof t.id === "number";
-      const url = isExisting
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/themes/${t.id}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/themes`;
-      
-      if (isExisting) {
-        form.append("is_active", "true");
-        await fetch(url, {
-          method: "PUT",
+      const base = `${process.env.NEXT_PUBLIC_API_URL}/api/themes`;
+      if (isExisting) params.set("is_active", "true");
+
+      const res = await fetch(
+        isExisting ? `${base}/${t.id}?${params}` : `${base}?${params}`,
+        {
+          method: isExisting ? "PUT" : "POST",
           headers: { Authorization: `Bearer ${token}` },
-          body: form,
-        });
-      } else {
-        await fetch(url, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: form,
-        });
+        }
+      );
+
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        console.error("Save theme failed:", res.status, d);
+        alert(`е удалось сохранить тему на сервере: ${d?.detail ?? res.status}`);
+        return;
+      }
+
+      /* осле создания у темы появился числовой id — синхронизируем
+         локальный список, чтобы последующие правки шли через PUT. */
+      const saved = await res.json().catch(() => null);
+      if (saved?.id != null && !isExisting) {
+        const custom = JSON.parse(localStorage.getItem("custom_themes") || "[]");
+        const idx = custom.findIndex((x: ThemeConfig) => String(x.id) === String(t.id));
+        if (idx >= 0) {
+          custom[idx] = { ...custom[idx], id: saved.id };
+          localStorage.setItem("custom_themes", JSON.stringify(custom));
+        }
+        setThemes((prev) =>
+          prev.map((x) => (String(x.id) === String(t.id) ? { ...x, id: saved.id } : x))
+        );
       }
     } catch (e) {
       console.error("Save to backend failed:", e);
