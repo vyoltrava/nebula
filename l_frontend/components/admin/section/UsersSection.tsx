@@ -14,7 +14,7 @@ export function UsersSection({ me }: { me: any }) {
   const [users, setUsers] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "team" | "users" | "bots">("all");
+  const [filterType, setFilterType] = useState<"all" | "team" | "users" | "bots" | "deleted">("all");
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const [warnTarget, setWarnTarget] = useState<any>(null);
   const [warnReason, setWarnReason] = useState("");
@@ -131,6 +131,9 @@ async function load() {
     // 🤖 Боты — отдельная вкладка, по умолчанию показываем только людей
     if (filterType === "bots") {
       if (!u.is_bot) return false;
+    } else if (filterType === "deleted") {
+      // 🗑 Отдельная вкладка: только удалённые (анонимизированные) аккаунты
+      if (!isDeletedAccount(u)) return false;
     } else if (u.is_bot || isDeletedAccount(u)) {
       // 🗑 Удалённые аккаунты скрыты из общих списков (как боты)
       return false;
@@ -297,6 +300,10 @@ async function load() {
           <button onClick={() => { setFilterType("bots"); setSelectedRoleId(null); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "bots" ? "border-sky-500 bg-sky-500/20 text-sky-600 dark:text-sky-400" : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
             🤖 Боты ({users.filter((u) => u.is_bot).length})
+          </button>
+          <button onClick={() => { setFilterType("deleted"); setSelectedRoleId(null); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "deleted" ? "border-red-500 bg-red-500/20 text-red-600 dark:text-red-400" : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
+            <Trash2 size={16} /> Удалённые ({users.filter((u) => isDeletedAccount(u)).length})
           </button>
           <select
             value={selectedRoleId ?? ""}
