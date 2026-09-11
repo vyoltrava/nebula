@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { mediaUrl } from "@/lib/media";
+import { cloudinaryHiRes } from "@/lib/media";
 
 export function Avatar({
   src,
@@ -29,7 +29,12 @@ export function Avatar({
   const cornerBox = cornerR + arm; // размер охватывающей области у правого нижнего угла
   const lineColor = "#16a34a"; // чуть более тёмный зелёный (green-600)
   const cornerGlow = "rgba(22,163,74,0.45)";
-  const imageUrl = src ? mediaUrl(src) : null;
+  // 🖼 Высокое разрешение: запрашиваем у Cloudinary производную ×3 от
+  // отображаемого размера (retina), срезая «впечённые» мелкие трансформации
+  // старых ссылок (иначе — мыло). Кап 1024, пол 256 (мелкие ряды списков).
+  const imageUrl = src
+    ? cloudinaryHiRes(src, Math.min(1024, Math.max(256, Math.round(size * 3))))
+    : null;
 
   return (
     <div
