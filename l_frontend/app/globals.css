@@ -355,8 +355,8 @@ html:not(.dark) .role-glow {
    ============================================================ */
 html[data-theme-active="1"] main[class*="bg-paper"] {
   background-color: rgba(245, 242, 239, 0.82) !important;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  /* ⚠️ БЕЗ backdrop-filter здесь: фильтр на скролл-контейнере ломает
+     position: sticky у детей (шапка списка чатов «уезжает под чаты»). */
 }
 html.dark[data-theme-active="1"] main[class*="bg-paper"] {
   background-color: rgba(23, 23, 23, 0.72) !important;

@@ -1016,7 +1016,7 @@ const confirmPrismKey = async () => {
       >
         
         {/* ШАПКА - только иконка и поиск */}
-        <div className="p-4 md:p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-4 md:p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-20">
           {/* mr-[108px]/md:mr-[120px] — резервируем место под fixed-кнопки «Все каналы» + «+», чтобы поиск не заезжал на них */}
           <div className="flex items-center gap-3 md:gap-4 mr-[108px] md:mr-[120px]">
             
