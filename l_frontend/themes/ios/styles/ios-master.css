@@ -92,6 +92,12 @@ body.ios-theme .ist-root button {
   transition: transform 120ms cubic-bezier(.25,.46,.45,.94),
     box-shadow 120ms cubic-bezier(.25,.46,.45,.94);
 }
+/* Круглые кнопки остаются круглыми (не сплющиваются в 10px) */
+body.ios-theme main button.rounded-full,
+body.ios-theme .ist-root button.rounded-full,
+body.ios-theme main button[data-ios-seal] {
+  border-radius: 50% !important;
+}
 /* Стеклянный блик сверху */
 body.ios-theme main button::before,
 body.ios-theme .ist-root button::before {
@@ -104,6 +110,10 @@ body.ios-theme .ist-root button::before {
   border-radius: 9px 9px 12px 12px;
   background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.15) 70%, transparent 100%);
   pointer-events: none;
+}
+body.ios-theme main button.rounded-full::before,
+body.ios-theme .ist-root button.rounded-full::before {
+  border-radius: 50%;
 }
 body.ios-theme main button:active:not(:disabled),
 body.ios-theme .ist-root button:active:not(:disabled) {
@@ -223,8 +233,9 @@ body.ios-theme [data-ios-post] div.flex.items-center.gap-3.mt-3.flex-wrap {
   gap: 7px !important;
   align-items: center !important;
 }
-body.ios-theme [data-ios-post] button.rounded-full,
-body.ios-theme [data-ios-post] button[data-ios-btn] {
+/* Пуговицы (обычные круглые); авиационные data-ios-btn оформляет
+   ios-components.css — не перекрываем богатый материал */
+body.ios-theme [data-ios-post] button.rounded-full:not([data-ios-btn]) {
   min-height: 32px;
   min-width: 30px;
   display: inline-flex;
@@ -240,8 +251,7 @@ body.ios-theme [data-ios-post] button[data-ios-btn] {
     inset 0 1px 0 rgba(255,255,255,.85),
     0 2px 3px rgba(80,60,30,.25) !important;
 }
-body.ios-theme [data-ios-post] button.rounded-full:active:not(:disabled),
-body.ios-theme [data-ios-post] button[data-ios-btn]:active:not(:disabled) {
+body.ios-theme [data-ios-post] button.rounded-full:not([data-ios-btn]):active:not(:disabled) {
   transform: translateY(1px) scale(0.96);
   box-shadow: inset 0 2px 5px rgba(90,60,25,.4) !important;
 }
