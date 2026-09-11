@@ -1,7 +1,8 @@
 /* ============================================================
-   IOS RESET — «полотно» темы: льняной холст с настоящим зерном
-   (фиксированный шумовой слой поверх ВСЕЙ страницы), виньетка,
-   тиснёные заголовки, прошитые разделители, металлический скроллбар.
+   IOS RESET — чистая база темы:
+   льняной холст, зерно, виньетка, базовая типографика.
+   НИКАКИХ агрессивных перебивок (квадратных аватаров и т.п.) —
+   материалы и рамки задаёт ios-master.css.
    ============================================================ */
 
 body.ios-theme {
@@ -22,7 +23,7 @@ body.ios-theme::before {
   pointer-events: none;
   background-image: var(--ios-noise);
   background-size: 220px 220px;
-  opacity: 0.05;
+  opacity: 0.04;
   mix-blend-mode: multiply;
 }
 
@@ -34,38 +35,32 @@ body.ios-theme::after {
   z-index: 2147482999;
   pointer-events: none;
   background: radial-gradient(120% 100% at 50% 0%,
-    transparent 55%, rgba(60, 44, 20, 0.10) 82%, rgba(40, 28, 10, 0.18) 100%);
+    transparent 55%, rgba(60, 44, 20, 0.08) 82%, rgba(40, 28, 10, 0.16) 100%);
 }
 
-/* Плоские подложки приложения — в прозрачность (материал даёт тема) */
+/* Плоские подложки — в прозрачность (материал даёт мастер) */
 body.ios-theme [class*="bg-paper"],
 body.ios-theme [class*="bg-ivory"],
 body.ios-theme [class*="bg-gray-50"],
-body.ios-theme [class*="bg-gray-100"],
 body.ios-theme [class*="backdrop-blur"] {
   background-color: transparent !important;
   backdrop-filter: none !important;
 }
 
-/* Типографика — заголовки «выдавлены» в поверхности */
+/* Базовая типографика — заголовки «выдавлены» в поверхность */
 body.ios-theme h1,
 body.ios-theme h2,
 body.ios-theme h3,
 body.ios-theme h4 {
   font-family: var(--ios-font);
-  color: var(--ios-ink);
+  color: #241d12;
   text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.55),
-    0 -1px 1px rgba(0, 0, 0, 0.18);
+    0 1px 0 rgba(255, 255, 255, 0.5),
+    0 -1px 1px rgba(0, 0, 0, 0.14);
 }
 
-/* Ссылки — атласный синий */
-body.ios-theme main a,
-body.ios-theme article a,
-body.ios-theme section a {
-  color: var(--ios-blue);
-  text-decoration: none;
-}
+/* Ссылки — атласный синий внутри тела, наследуют в сайдбаре */
+body.ios-theme main a { color: var(--ios-blue); text-decoration: none; }
 body.ios-theme aside a { color: inherit; }
 
 body.ios-theme ::selection {
@@ -73,22 +68,10 @@ body.ios-theme ::selection {
   color: #ffffff;
 }
 
-/* Аватары — фотографии в белых рамках с лёгким наклоном */
-body.ios-theme img.rounded-full,
-body.ios-theme div.rounded-full {
-  border-radius: 4px !important;
-  border: 3px solid #ffffff;
-  box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.30),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.06);
-  object-fit: cover;
-}
-
-/* --- Скроллбар: брашированный металл --- */
+/* Скроллбар — брашированный металл */
 body.ios-theme ::-webkit-scrollbar { width: 12px; height: 12px; background: transparent; }
 body.ios-theme ::-webkit-scrollbar-thumb {
-  background:
-    linear-gradient(90deg, #efece4 0%, #cfcabd 45%, #b3ac9d 100%);
+  background: linear-gradient(90deg, #efece4 0%, #cfcabd 45%, #b3ac9d 100%);
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: padding-box;
