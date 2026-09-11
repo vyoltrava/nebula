@@ -8,7 +8,7 @@ import { BUILTIN_THEMES, ThemeConfig, ThemeAnimationType } from "@/lib/themes";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import {
   Palette, Plus, Edit3, Trash2, Eye, EyeOff, Check, X,
-  ArrowLeft, Sparkles, Users, Lock, Globe, Zap,
+  ArrowLeft, Sparkles, Users, Lock, Zap,
 } from "lucide-react";
 
 export default function AdminThemesPage() {
@@ -18,7 +18,6 @@ export default function AdminThemesPage() {
   const [themes, setThemes] = useState<ThemeConfig[]>(BUILTIN_THEMES);
   const [editingTheme, setEditingTheme] = useState<ThemeConfig | null>(null);
   const [showEditor, setShowEditor] = useState(false);
-  const [globalEnabled, setGlobalEnabled] = useState(true);
   const [previewTheme, setPreviewTheme] = useState<ThemeConfig | null>(null);
 
   // Загрузка админа
@@ -40,18 +39,7 @@ export default function AdminThemesPage() {
   useEffect(() => {
     loadThemes();
     // Грузим состояние с бэкенда
-    const token = getToken();
-    if (token) {
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/themes/settings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data) setGlobalEnabled(data.themes_enabled === true);
-        })
-        .catch(() => {});
-    }
-  }, []);
+      }, []);
 
   async function loadThemes() {
     try {
@@ -79,19 +67,11 @@ export default function AdminThemesPage() {
     localStorage.setItem("custom_themes", JSON.stringify(custom));
   }
 
-  async function toggleGlobal() {
-    const next = !globalEnabled;
-    setGlobalEnabled(next);
-    localStorage.setItem("themes_global_enabled", String(next));
-    if (!next) setTheme(null);
-    
-    // Сохраняем на бэкенд
+  async function saveToBackend(t: ThemeConfig) {
     const token = getToken();
-    if (token) {
-      try {
-        /* ⚠️ ндпоинт принимает СЯЫ query-параметры (FastAPI), а не форму.
-         FormData игнорировался → 422, и тема существовала только в localStorage,
-         поэтому в настройках юзеров новые темы не появлялись. */
+    if (!token) return;
+    try {
+      /* ндпоинт принимает скалярные query-параметры (FastAPI) — поля в query. */
       const params = new URLSearchParams();
       params.set("name", t.name);
       params.set("type", t.type);
@@ -108,21 +88,14 @@ export default function AdminThemesPage() {
 
       const res = await fetch(
         isExisting ? `${base}/${t.id}?${params}` : `${base}?${params}`,
-        {
-          method: isExisting ? "PUT" : "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { method: isExisting ? "PUT" : "POST", headers: { Authorization: `Bearer ${token}` } }
       );
-
       if (!res.ok) {
         const d = await res.json().catch(() => null);
         console.error("Save theme failed:", res.status, d);
         alert(`е удалось сохранить тему на сервере: ${d?.detail ?? res.status}`);
         return;
       }
-
-      /* осле создания у темы появился числовой id — синхронизируем
-         локальный список, чтобы последующие правки шли через PUT. */
       const saved = await res.json().catch(() => null);
       if (saved?.id != null && !isExisting) {
         const custom = JSON.parse(localStorage.getItem("custom_themes") || "[]");
@@ -138,6 +111,40 @@ export default function AdminThemesPage() {
     } catch (e) {
       console.error("Save to backend failed:", e);
     }
+  }
+
+  function saveTheme() {
+    if (!editingTheme || !editingTheme.name.trim()) {
+      alert("ведите название темы");
+      return;
+    }
+    const existing = themes.findIndex((x) => x.id === editingTheme.id);
+    const newList = [...themes];
+    if (existing >= 0) newList[existing] = editingTheme;
+    else newList.push(editingTheme);
+    setThemes(newList);
+    saveCustomThemes(newList);
+    setShowEditor(false);
+    setEditingTheme(null);
+    saveToBackend(editingTheme);
+  }
+
+  function openCreate() {
+    setEditingTheme({
+      id: 'custom_' + Date.now(),
+      name: "",
+      type: "aurora",
+      colors: ["#8b5cf6", "#6366f1", "#0ea5e9"],
+      speed: 24,
+      intensity: 0.22,
+      blur: 80,
+    });
+    setShowEditor(true);
+  }
+
+  function openEdit(t: ThemeConfig) {
+    setEditingTheme({ ...t });
+    setShowEditor(true);
   }
 
   async function deleteTheme(t: ThemeConfig) {
@@ -210,32 +217,6 @@ export default function AdminThemesPage() {
             </button>
           </div>
 
-          {/* Глобальный тумблер */}
-          <div className="mt-4 p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {globalEnabled ? <Globe size={18} className="text-emerald-600 dark:text-emerald-400" /> : <Globe size={18} className="text-gray-500 dark:text-white/40" />}
-              <div>
-                <p className="text-sm font-bold text-gray-900 dark:text-white">
-                  Темы включены Рґля всех пользователей
-                </p>
-                <p className="text-[11px] text-gray-500 dark:text-white/40">
-                  {globalEnabled ? "Анимированные фоны отображаются на сайте" : "Фон выключен Рґля всех — чистый чёрный"}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={toggleGlobal}
-              className={`relative w-12 h-6 rounded-full transition-colors ${
-                globalEnabled ? "bg-emerald-500" : "bg-gray-100 dark:bg-white/20"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                  globalEnabled ? "translate-x-6" : "translate-x-0.5"
-                }`}
-              />
-            </button>
-          </div>
         </div>
 
         {/* Сетка тем */}

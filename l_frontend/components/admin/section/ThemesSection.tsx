@@ -10,7 +10,7 @@ import {
 } from "@/lib/shellSwitcher";
 import {
   Palette, Plus, Edit3, Trash2, Eye, Check, X,
-  Sparkles, Lock, Globe, Zap, Layers, Orbit,
+  Sparkles, Lock, Zap, Layers, Orbit,
 } from "lucide-react";
 
 /* ============================================================
@@ -69,7 +69,6 @@ export function ThemesSection({ me }: { me: any }) {
   const [themes, setThemes] = useState<ThemeConfig[]>(BUILTIN_THEMES);
   const [editingTheme, setEditingTheme] = useState<ThemeConfig | null>(null);
   const [showEditor, setShowEditor] = useState(false);
-  const [globalEnabled, setGlobalEnabled] = useState(true);
   const [previewTheme, setPreviewTheme] = useState<ThemeConfig | null>(null);
 
   /* 🎛️ Синхронизация флага оболочек */
@@ -86,18 +85,6 @@ export function ThemesSection({ me }: { me: any }) {
   /* 🎨 Загрузка тем с бэкенда (если есть) + localStorage */
   useEffect(() => {
     loadThemes();
-    // Грузим состояние с бэкенда
-    const token = getToken();
-    if (token) {
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/themes/settings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data) setGlobalEnabled(data.themes_enabled === true);
-        })
-        .catch(() => {});
-    }
   }, []);
 
   async function loadThemes() {
@@ -150,27 +137,6 @@ export function ThemesSection({ me }: { me: any }) {
       }
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function toggleGlobal() {
-    const next = !globalEnabled;
-    setGlobalEnabled(next);
-    localStorage.setItem("themes_global_enabled", String(next));
-    if (!next) setTheme(null);
-
-    // Сохраняем на бэкенд
-    const token = getToken();
-    if (token) {
-      try {
-        const form = new FormData();
-        form.append("enabled", String(next));
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/themes/settings`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: form,
-        });
-      } catch {}
     }
   }
 
@@ -329,7 +295,7 @@ export function ThemesSection({ me }: { me: any }) {
         </p>
       </div>
 
-      {/* 🎨 Конструктор тем — шапка + глобальный тумблер */}
+      {/* 🎨 Конструктор тем */}
       <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -358,25 +324,6 @@ export function ThemesSection({ me }: { me: any }) {
             <Orbit size={16} />
             Обучение орбите
           </button>
-        </div>
-
-        {/* Глобальный тумблер */}
-        <div className="mt-3 p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <Globe
-              size={18}
-              className={`shrink-0 ${globalEnabled ? "text-emerald-600 dark:text-emerald-400" : "text-gray-500 dark:text-white/40"}`}
-            />
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-gray-900 dark:text-white">
-                Темы включены для всех пользователей
-              </p>
-              <p className="text-[11px] text-gray-500 dark:text-white/40">
-                {globalEnabled ? "Анимированные фоны отображаются на сайте" : "Фон выключен для всех — чистый чёрный"}
-              </p>
-            </div>
-          </div>
-          <ToggleSwitch checked={globalEnabled} onChange={toggleGlobal} tone="emerald" />
         </div>
       </div>
 
