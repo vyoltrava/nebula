@@ -77,14 +77,13 @@ export function IosShellToggle() {
       }
     };
 
-    /* Первичная привязка микрозадачей (setState не синхронно в эффекте) */
-    const timer = window.setTimeout(ensure, 0);
-    const observer = new MutationObserver(ensure);
-    observer.observe(document.body, { childList: true, subtree: true });
+    /* Однократная привязка при навигации: БЕЗ MutationObserver.
+       Два других инжектора уже наблюдают за DOM — третий наблюдатель
+       приводил к гонке вставок (визуально «вечный» лоадер в настройках). */
+    const timers = [0, 350, 900].map((ms) => window.setTimeout(ensure, ms));
 
     return () => {
-      window.clearTimeout(timer);
-      observer.disconnect();
+      timers.forEach((t) => window.clearTimeout(t));
       detach();
       setHost(null);
     };

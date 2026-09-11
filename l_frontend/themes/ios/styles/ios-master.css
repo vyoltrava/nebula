@@ -1,9 +1,7 @@
 /* ============================================================
-
-   IOS MASTER — единственный авторитетный слой скевоморфной темы.
-   Всё оформление собрано здесь: холст, кнопки, посты, комментарии,
-   сайдбар, сообщения, профиль, уведомления, табы, анимации.
-   Только внутри body.ios-theme. Никаких конфликтов с другими файлами.
+   IOS MASTER — финальный корректирующий слой темы Old iOS.
+   Подключается ПОСЛЕДНИМ: гасит конфликты декоративных слоёв и
+   добавляет недостающее. Только внутри body.ios-theme.
    ============================================================ */
 
 /* ---------- 0. ТОКЕНЫ ---------- */
@@ -20,35 +18,17 @@ body.ios-theme {
   --sk-wood-2: #795548;
   --sk-wood-3: #3e2723;
   --sk-hand: "Segoe Script", "Bradley Hand", "Marker Felt", "Comic Sans MS", cursive;
-  --sk-head: #241d12;
-  --sk-body: #33302a;
-  --sk-soft: #6e675a;
-  --sk-faint: #9a9184;
-  --sk-brass-1: #f2d489;
-  --sk-brass-2: #c99b2f;
-  --sk-brass-3: #7e5a12;
-
-  /* Дерево — фон сайдбара и мессенджера */
-  --sk-wood-bg:
-    var(--ios-noise),
-    repeating-linear-gradient(88deg, rgba(0,0,0,0.07) 0 3px, transparent 3px 11px),
-    linear-gradient(180deg, #795548 0%, #5d4037 55%, #3e2723 100%);
 }
 
-/* ---------- 1. ХОЛСТ И ОБЩИЙ ТЕКСТ ---------- */
+/* ---------- 1. ХОЛСТ И ТЕКСТ ---------- */
 body.ios-theme main,
-body.ios-theme .ist-root {
-  color: var(--sk-body) !important;
-}
+body.ios-theme .ist-root { color: #33302a; }
 body.ios-theme main h1,
 body.ios-theme main h2,
 body.ios-theme main h3,
-body.ios-theme main h4 {
-  color: var(--sk-head) !important;
-}
+body.ios-theme main h4 { color: #241d12; }
 
-/* ---------- 2. АВАТАРЫ — металлические медальоны ---------- */
-/* Крупный аватар профиля — латунная рамка с фаской и утопленным стеклом */
+/* ---------- 2. АВАТАРЫ ---------- */
 body.ios-theme[data-ios-page="user"] main img.rounded-full {
   border-radius: 50% !important;
   border: 0 !important;
@@ -56,24 +36,34 @@ body.ios-theme[data-ios-page="user"] main img.rounded-full {
     0 0 0 3px #8a6a1e,
     0 0 0 5px #e3c86e,
     0 0 0 7px #7c5a12,
-    inset 0 3px 8px rgba(0, 0, 0, 0.55),
-    0 6px 16px rgba(0, 0, 0, 0.5) !important;
+    inset 0 3px 8px rgba(0,0,0,.55),
+    0 6px 16px rgba(0,0,0,.5) !important;
 }
-/* Обычные аватары — стальная окантовка */
 body.ios-theme main img.rounded-full,
 body.ios-theme [data-ios-sidebar] img.rounded-full,
+body.ios-theme aside img.rounded-full,
 body.ios-theme [data-ios-post] img.rounded-full {
   border-radius: 50% !important;
   border: 0 !important;
   box-shadow:
     0 0 0 2px #e6e6e5,
     0 0 0 3px #9a9b9d,
-    inset 0 2px 4px rgba(0, 0, 0, 0.4),
-    0 2px 4px rgba(0, 0, 0, 0.28) !important;
+    inset 0 2px 4px rgba(0,0,0,.4),
+    0 2px 4px rgba(0,0,0,.28) !important;
+}
+/* Поляроид для медиа в посте (не аватары) */
+body.ios-theme [data-ios-post] img:not(.rounded-full) {
+  background: #fffdf6;
+  padding: 8px 8px 30px 8px;
+  border: 1px solid #d9d2bd;
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.12),
+    inset 0 2px 7px rgba(0,0,0,.3),
+    0 3px 8px rgba(60,45,20,.3);
+  transform: rotate(-1deg);
 }
 
 /* ---------- 3. ГЛОБАЛЬНЫЕ КНОПКИ ---------- */
-/* Все кнопки — физические: свет сверху, тёмная кромка, вдавливание */
 body.ios-theme main button,
 body.ios-theme .ist-root button {
   position: relative;
@@ -82,23 +72,20 @@ body.ios-theme .ist-root button {
   border: 1px solid #a99a77;
   border-top-color: #fdf8eb;
   border-bottom-color: #8a7a56;
-  color: var(--sk-body);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  color: #33302a;
+  text-shadow: 0 1px 0 rgba(255,255,255,.6);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 -2px 4px rgba(120, 96, 60, 0.2),
-    0 1px 2px rgba(0, 0, 0, 0.2),
-    0 4px 9px rgba(0, 0, 0, 0.13);
+    inset 0 1px 0 rgba(255,255,255,.85),
+    inset 0 -2px 4px rgba(120,96,60,.2),
+    0 1px 2px rgba(0,0,0,.2),
+    0 4px 9px rgba(0,0,0,.13);
   transition: transform 120ms cubic-bezier(.25,.46,.45,.94),
     box-shadow 120ms cubic-bezier(.25,.46,.45,.94);
 }
-/* Круглые кнопки остаются круглыми (не сплющиваются в 10px) */
 body.ios-theme main button.rounded-full,
-body.ios-theme .ist-root button.rounded-full,
-body.ios-theme main button[data-ios-seal] {
+body.ios-theme .ist-root button.rounded-full {
   border-radius: 50% !important;
 }
-/* Стеклянный блик сверху */
 body.ios-theme main button::before,
 body.ios-theme .ist-root button::before {
   content: "";
@@ -108,7 +95,7 @@ body.ios-theme .ist-root button::before {
   right: 1px;
   height: 42%;
   border-radius: 9px 9px 12px 12px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.15) 70%, transparent 100%);
+  background: linear-gradient(180deg, rgba(255,255,255,.85) 0%, rgba(255,255,255,.15) 70%, transparent 100%);
   pointer-events: none;
 }
 body.ios-theme main button.rounded-full::before,
@@ -119,9 +106,9 @@ body.ios-theme main button:active:not(:disabled),
 body.ios-theme .ist-root button:active:not(:disabled) {
   background: linear-gradient(180deg, #d4c49f 0%, #e7d9b9 60%, #f4ebd5 100%);
   box-shadow:
-    inset 0 3px 7px rgba(80, 60, 25, 0.35),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.4),
-    0 1px 0 rgba(255, 255, 255, 0.4);
+    inset 0 3px 7px rgba(80,60,25,.35),
+    inset 0 -1px 0 rgba(255,255,255,.4),
+    0 1px 0 rgba(255,255,255,.4);
   transform: translateY(2px) scale(0.97);
 }
 body.ios-theme main button:active::before,
@@ -129,7 +116,7 @@ body.ios-theme .ist-root button:active::before { opacity: 0.2; }
 body.ios-theme main button:disabled,
 body.ios-theme .ist-root button:disabled { opacity: 0.5; filter: saturate(0.55); cursor: not-allowed; }
 
-/* Primary (заливка акцентом), включая фиолетовые #8b5cf6 */
+/* Primary (фиолетовые) */
 body.ios-theme main button[class*="bg-[#8b5cf6]"],
 body.ios-theme main button[class*="bg-[#8B5CF6]"],
 body.ios-theme main button[class*="bg-[#7c3aed]"] {
@@ -149,16 +136,45 @@ body.ios-theme main button[class*="bg-[#8b5cf6]"]:active:not(:disabled),
 body.ios-theme main button[class*="bg-[#8B5CF6]"]:active:not(:disabled) {
   background: linear-gradient(180deg, #6a3ddb 0%, #8b5cf6 60%, #c4a6ff 100%);
   box-shadow: inset 0 4px 9px rgba(30,5,90,.55), 0 1px 0 rgba(255,255,255,.3);
+}
+
+/* Danger */
+body.ios-theme main button[class*="text-red"],
+body.ios-theme main button[class*="bg-red"] {
+  color: #a81f10;
+  text-shadow: none;
+}
+
+/* Сургучная печать */
+body.ios-theme main button[data-ios-seal],
+body.ios-theme .ist-root button[data-ios-seal] {
+  width: 66px;
+  height: 66px;
+  min-width: 66px;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  background:
+    radial-gradient(circle at 32% 26%, #ff9d8d 0%, #e6392a 45%, #a01a0d 82%, #6f0f05 100%) !important;
+  border: 2px solid #7c130a !important;
+  color: #ffe9dd !important;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .07em;
+  line-height: 1.15;
+  text-transform: uppercase;
+  text-align: center;
+  text-shadow: 0 -1px 0 rgba(80,8,2,.85);
+}
+body.ios-theme main button[data-ios-seal]:active { transform: scale(.9) translateY(2px); }
 /* ============================================================
-   4. ПОСТЫ — картонные карточки
+   4. ПОСТЫ
    ============================================================ */
-/* Покрываем оба селектора: article[data-post-id] (лента) и [data-ios-post] */
 body.ios-theme article[data-post-id],
 body.ios-theme [data-ios-post] {
   position: relative;
   background:
     var(--ios-noise),
-    repeating-linear-gradient(94deg, rgba(160,140,100,0.045) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(94deg, rgba(160,140,100,.045) 0 2px, transparent 2px 7px),
     linear-gradient(180deg, #fffdf5 0%, #faf4e2 55%, #f1e8d1 100%) !important;
   background-size: 220px 220px, auto, auto !important;
   border: 1px solid #cfc2a2 !important;
@@ -174,7 +190,6 @@ body.ios-theme [data-ios-post] {
   transform: none !important;
   cursor: default;
 }
-/* Загнутый нижний правый угол */
 body.ios-theme [data-ios-post] { overflow: hidden; }
 body.ios-theme [data-ios-post]::after {
   content: "";
@@ -190,8 +205,6 @@ body.ios-theme [data-ios-post]::after {
   pointer-events: none;
   z-index: 2;
 }
-
-/* Текст поста — печатный serif, вдавлен в бумагу */
 body.ios-theme [data-ios-post] .whitespace-pre-wrap,
 body.ios-theme [data-ios-post] p,
 body.ios-theme article[data-post-id] .whitespace-pre-wrap {
@@ -201,40 +214,21 @@ body.ios-theme article[data-post-id] .whitespace-pre-wrap {
   color: #2a2a2a !important;
   text-shadow: 0 1px 0 rgba(255,255,255,.5);
 }
-/* Имя автора — жирное тиснение; ник — серо-коричневый */
 body.ios-theme [data-ios-post] a[class*="font-bold"],
 body.ios-theme [data-ios-post] [class*="font-bold"] {
   color: #241d12 !important;
   text-shadow: 0 1px 0 rgba(255,255,255,.5);
 }
 body.ios-theme [data-ios-post] [class*="text-gray-400"],
-body.ios-theme [data-ios-post] [class*="text-gray-500"] {
-  color: #8b7355 !important;
-}
+body.ios-theme [data-ios-post] [class*="text-gray-500"] { color: #8b7355 !important; }
 body.ios-theme [data-ios-post] time,
-body.ios-theme article[data-post-id] [class*="text-xs"] {
-  color: #9a9184 !important;
-}
+body.ios-theme article[data-post-id] [class*="text-xs"] { color: #9a9184 !important; }
 
-/* Медиа — поляроид */
-body.ios-theme [data-ios-post] img:not(.rounded-full) {
-  background: #fffdf6;
-  padding: 8px 8px 30px 8px;
-  border: 1px solid #d9d2bd;
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.12),
-    inset 0 2px 7px rgba(0,0,0,.3),
-    0 3px 8px rgba(60,45,20,.3);
-  transform: rotate(-1deg);
-}
-
-/* Панель действий — компактный ровный ряд */
+/* Панель действий */
 body.ios-theme [data-ios-post] div.flex.items-center.gap-3.mt-3.flex-wrap {
   gap: 7px !important;
   align-items: center !important;
 }
-/* Пуговицы (обычные круглые); авиационные data-ios-btn оформляет
-   ios-components.css — не перекрываем богатый материал */
 body.ios-theme [data-ios-post] button.rounded-full:not([data-ios-btn]) {
   min-height: 32px;
   min-width: 30px;
@@ -258,7 +252,6 @@ body.ios-theme [data-ios-post] button.rounded-full:not([data-ios-btn]):active:no
 body.ios-theme [data-ios-post] button svg {
   filter: drop-shadow(0 1px 0 rgba(255,255,255,.7)) drop-shadow(0 -1px 1px rgba(60,40,15,.35));
 }
-/* Счётчики рядом с пуговицами — чернила (не сиреневые) */
 body.ios-theme [data-ios-post] button + span,
 body.ios-theme [data-ios-post] button + small,
 body.ios-theme [data-ios-post] button + b {
@@ -266,14 +259,12 @@ body.ios-theme [data-ios-post] button + b {
   font-weight: 700;
   font-size: 12px;
 }
-/* Реакция-капсула, «Ответить» и прочие круглые — коричневые */
 body.ios-theme [data-ios-post] button.rounded-full[class*="border-[#8b5cf6]"],
 body.ios-theme [data-ios-post] button.rounded-full[class*="border-[#8B5CF6]"],
 body.ios-theme [data-ios-post] button.rounded-full {
   border-color: #cbb87f !important;
   color: #5a4327 !important;
 }
-/* Активный лайк — красный глянец */
 body.ios-theme [data-ios-post] button[data-ios-btn="like"][class*="text-red"],
 body.ios-theme [data-ios-post] button[data-ios-btn="like"][class*="text-[#ff"],
 body.ios-theme main button[data-ios-btn="like"][class*="text-red"] {
@@ -288,17 +279,12 @@ body.ios-theme [data-ios-btn="like"][class*="text-red"] svg {
   fill: currentColor;
   filter: drop-shadow(0 1px 1px rgba(90,0,0,.5));
 }
-/* «Показать ответы (N)» — коричневая ссылка-кнопка */
 body.ios-theme [data-ios-post] button[class*="text-[#8b5cf6]"]:not([data-ios-btn]) {
   color: #6b4f2f !important;
   background: none !important;
   border: none !important;
   box-shadow: none !important;
-  text-shadow: none !important;
-  border-radius: 0 !important;
-  padding: 2px 4px !important;
-  font-size: 12px !important;
-  font-weight: 700;
+
 /* ============================================================
    5. КОММЕНТАРИИ — ЖЁЛТЫЕ СТИКЕРЫ
    ============================================================ */
@@ -321,17 +307,10 @@ body.ios-theme [data-ios-post] .space-y-3 > div {
   font-family: var(--sk-hand) !important;
   color: #2a2a2a !important;
   transform: rotate(var(--sk-rot, 0deg));
-  transition: transform 160ms cubic-bezier(.34,1.56,.64,1), box-shadow 160ms cubic-bezier(.25,.46,.45,.94);
-  animation: skStickerIn 420ms cubic-bezier(.34,1.56,.64,1) backwards;
 }
 body.ios-theme [data-ios-post] .space-y-3 > div:nth-child(3n+1) { --sk-rot: -2.4deg; }
 body.ios-theme [data-ios-post] .space-y-3 > div:nth-child(3n+2) { --sk-rot: 1.8deg; }
 body.ios-theme [data-ios-post] .space-y-3 > div:nth-child(3n) { --sk-rot: -0.8deg; }
-body.ios-theme [data-ios-post] .space-y-3 > div:active {
-  transform: rotate(0deg) scale(1.05);
-  box-shadow: 0 6px 18px rgba(70,50,5,.45), inset 0 1px 0 rgba(255,255,255,.55);
-  z-index: 10;
-}
 body.ios-theme [data-ios-post] .space-y-3 > div::after {
   content: "";
   position: absolute;
@@ -354,11 +333,6 @@ body.ios-theme [data-ios-post] .space-y-3 > div time,
 body.ios-theme [data-ios-post] .space-y-3 > div [class*="text-gray"] {
   font-size: 11px !important;
   color: #7a7160 !important;
-}
-@keyframes skStickerIn {
-  0%   { opacity: 0; transform: translateY(-26px) rotate(calc(var(--sk-rot,0deg) - 8deg)) scale(1.12); }
-  60%  { opacity: 1; transform: translateY(4px) rotate(var(--sk-rot,0deg)) scale(.96); }
-  100% { opacity: 1; transform: translateY(0) rotate(var(--sk-rot,0deg)) scale(1); }
 }
 
 /* Форма ответа — линованный блокнот */
@@ -384,9 +358,8 @@ body.ios-theme main button[data-ios-btn="send"] {
     inset 0 -3px 6px rgba(80,5,0,.55),
     0 3px 6px rgba(120,20,5,.4) !important;
   font-weight: 800;
-  letter-spacing: .06em;
 /* ============================================================
-   6. САЙДБАР — деревянная панель с клавишами
+   6. САЙДБАР
    ============================================================ */
 body.ios-theme [data-ios-sidebar],
 body.ios-theme aside {
@@ -399,7 +372,8 @@ body.ios-theme aside {
   box-shadow: inset -14px 0 22px rgba(0,0,0,.45), 3px 0 14px rgba(0,0,0,.3) !important;
   color: #f2e3c2 !important;
 }
-body.ios-theme [data-ios-sidebar] a {
+body.ios-theme [data-ios-sidebar] a,
+body.ios-theme aside a {
   border-radius: 10px;
   margin: 4px 8px;
   color: #ecd7b2 !important;
@@ -411,9 +385,7 @@ body.ios-theme [data-ios-sidebar] a {
     inset 0 -2px 4px rgba(0,0,0,.3),
     0 2px 4px rgba(0,0,0,.4);
   text-shadow: 0 -1px 1px rgba(0,0,0,.8);
-  transition: transform 150ms cubic-bezier(.34,1.56,.64,1), box-shadow 150ms cubic-bezier(.25,.46,.45,.94);
 }
-body.ios-theme [data-ios-sidebar] a:hover { background: linear-gradient(180deg, rgba(255,240,210,.16) 0%, rgba(0,0,0,.16) 100%); }
 body.ios-theme [data-ios-sidebar] a[data-ios-active="true"] {
   background: linear-gradient(180deg, rgba(0,0,0,.4) 0%, rgba(0,0,0,.16) 100%);
   color: #ffdf9e !important;
@@ -422,7 +394,13 @@ body.ios-theme [data-ios-sidebar] a[data-ios-active="true"] {
 }
 body.ios-theme [data-ios-sidebar] a:active { transform: translateY(1px) scale(.985); }
 
-/* Бейджи непрочитанного — медальоны */
+/* Пунктирные прошивки между клавишами — убраны (визуальный мусор) */
+body.ios-theme [data-ios-sidebar] .ios-stitch { display: none !important; }
+body.ios-theme [data-ios-sidebar] a:not([data-ios-active="true"])::after { content: none !important; }
+/* Вращающаяся шестерёнка у иконки настроек — убрана */
+body.ios-theme [data-ios-sidebar] .ios-3d-settings::after { animation: none !important; }
+
+/* Бейджи непрочитанного */
 body.ios-theme [data-ios-sidebar] span[class*="rounded-full"] {
   background: radial-gradient(circle at 35% 30%, #ffe9a8 0%, #d89a2a 60%, #8a5a10 100%) !important;
   border: 1px solid #6b4510 !important;
@@ -431,7 +409,7 @@ body.ios-theme [data-ios-sidebar] span[class*="rounded-full"] {
   box-shadow: 0 0 6px rgba(216,154,42,.7);
 }
 
-/* Профиль в сайдбаре — ровная строка: аватар | имя+@ник */
+/* Профиль в сайдбаре — ровная строка */
 body.ios-theme [data-ios-sidebar] div[class*="px-2"] div[class*="items-center"] {
   display: flex;
   align-items: center;
@@ -464,7 +442,23 @@ body.ios-theme [data-ios-sidebar] button[title*="Аккаунт"] {
   background: linear-gradient(180deg, #5c4630 0%, #3d2b1a 100%) !important;
 }
 
-/* ---------- 6.1 ПОПАП УВЕДОМЛЕНИЙ ---------- */
+/* ============================================================
+   7. НАВ-ШАПКА
+   ============================================================ */
+body.ios-theme main [class*="sticky"][class*="top-0"] {
+  background:
+    var(--ios-noise),
+    linear-gradient(180deg, #efe8d6 0%, #d9d0ba 55%, #bfb59c 100%) !important;
+  background-size: 200px 200px, auto !important;
+  border-bottom: 2px solid #93876b !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8), 0 2px 6px rgba(60,45,20,.25) !important;
+  color: #3a3428 !important;
+}
+body.ios-theme main [class*="sticky"][class*="top-0"] h1,
+body.ios-theme main [class*="sticky"][class*="top-0"] h2,
+/* ============================================================
+   8. ПОПАП УВЕДОМЛЕНИЙ
+   ============================================================ */
 body.ios-theme [class*="md:w-[380px]"] {
   background:
     var(--ios-noise),
@@ -489,44 +483,88 @@ body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] {
 }
 body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"]:hover { background: linear-gradient(180deg, #f8f0db 0%, #ece1c6 100%) !important; }
 body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] p { color: #3c3020 !important; }
-body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] div[class*="rounded-full"] {
-  background: radial-gradient(circle at 35% 30%, #ffe9a8 0%, #d89a2a 60%, #8a5a10 100%) !important;
-  box-shadow: 0 0 5px rgba(216,154,42,.8);
-}
-body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] div[class*="w-[18px]"] {
-  background: linear-gradient(180deg, #f6efdd 0%, #d5c49a 100%) !important;
-  border: 1px solid #a79566 !important;
-  color: #5a4327 !important;
-}
+body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] p span[class*="font-semibold"] { color: #241a0d !important; }
 body.ios-theme [class*="md:w-[380px]"] > div:last-child {
   background: linear-gradient(180deg, #e9dcaa 0%, #c9ab50 100%) !important;
   border-top: 2px solid #5f4310 !important;
 }
 body.ios-theme [class*="md:w-[380px]"] > div:last-child a { color: #3c2a08 !important; font-weight: 800; text-shadow: 0 1px 0 rgba(255,250,210,.5); }
-body.ios-theme [class*="md:w-[380px]"] > div:last-child a:hover { background: rgba(92,66,10,.14) !important; color: #241800 !important; }
 body.ios-theme [class*="md:w-[380px]"] div.p-8 svg { color: #d8cdb2 !important; animation: none !important; opacity: .4; }
 body.ios-theme [class*="md:w-[380px]"] div.p-8 p { color: #c9bd9f !important; font-family: var(--sk-hand); font-size: 13px; }
 
 /* ============================================================
-   7. НАВ-ШАПКА (sticky top) — металл
+   9. СПИСКИ/СТРАНИЦЫ (уведомления, закладки, каналы и т.д.)
    ============================================================ */
-body.ios-theme main [class*="sticky"][class*="top-0"] {
+body.ios-theme [data-ios-list] > *,
+body.ios-theme [data-ios-tile] {
+  position: relative;
   background:
     var(--ios-noise),
-    linear-gradient(180deg, #efe8d6 0%, #d9d0ba 55%, #bfb59c 100%) !important;
-  background-size: 200px 200px, auto !important;
-  border-bottom: 2px solid #93876b !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.8), 0 2px 6px rgba(60,45,20,.25) !important;
-  color: #3a3428 !important;
+    linear-gradient(180deg, #fdf9ec 0%, #f4ecd6 100%) !important;
+  background-size: 220px 220px, auto !important;
+  border: 1px solid #cfc2a2 !important;
+  border-radius: 10px !important;
+  box-shadow:
+    0 2px 4px rgba(0,0,0,.12),
+    0 6px 14px rgba(0,0,0,.13),
+    inset 0 1px 0 rgba(255,255,255,.7) !important;
+  margin: 8px 0 !important;
 }
-body.ios-theme main [class*="sticky"][class*="top-0"] h1,
-body.ios-theme main [class*="sticky"][class*="top-0"] h2,
-body.ios-theme main [class*="sticky"][class*="top-0"] [class*="font-"] {
-  color: #3a3428 !important;
-  text-shadow: 0 1px 0 rgba(255,255,255,.65), 0 -1px 0 rgba(90,75,45,.35);
+body.ios-theme [data-ios-list] > * p:first-of-type { font-size: 15px; font-weight: 600; color: #33302a; }
+body.ios-theme [data-ios-list] > * time,
+body.ios-theme [data-ios-list] > * [class*="text-xs"] { font-size: 12px; color: #9a9184; }
+body.ios-theme[data-ios-page="notifications"] [data-ios-list] > * {
+  background: linear-gradient(180deg, #f6ecc9 0%, #eeddb0 100%) !important;
+  border-left: 10px double #b9a06a !important;
+  border-right: 10px double #b9a06a !important;
+  border-radius: 2px !important;
+}
+body.ios-theme[data-ios-page="notifications"] [data-ios-list] > * p {
+  font-family: "Courier New", Courier, monospace;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: #4a3a1e !important;
 
 /* ============================================================
-   8. СООБЩЕНИЯ — переписка на деревянном столе
+   10. ПРОФИЛЬ И ТАБЫ
+   ============================================================ */
+body.ios-theme[data-ios-page="user"] main {
+  background:
+    var(--ios-noise),
+    linear-gradient(180deg, #7c4b33 0%, #5a3018 60%, #3f2010 100%) !important;
+  background-size: 220px 220px, auto !important;
+  color: #f2e3c2 !important;
+}
+body.ios-theme[data-ios-page="user"] main h1,
+body.ios-theme[data-ios-page="user"] main [class*="font-black"],
+body.ios-theme[data-ios-page="user"] main [class*="font-bold"] {
+  color: #f2e3c2 !important;
+  text-shadow: 0 1px 0 rgba(255,235,195,.28), 0 -1px 1px rgba(20,8,0,.8) !important;
+}
+body.ios-theme[data-ios-page="user"] main [class*="text-gray-"] { color: #d8c6a4 !important; }
+body.ios-theme[data-ios-page="user"] main button { color: #f4ead2; text-shadow: 0 1px 2px rgba(15,5,0,.65); }
+
+/* Табы — металлические пластины */
+body.ios-theme main [class*="border-b-2"] {
+  background: linear-gradient(180deg, #e9e4d8 0%, #cfcbc0 100%) !important;
+  border: 1px solid #9a9488 !important;
+  border-radius: 6px 6px 0 0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), inset 0 -2px 3px rgba(0,0,0,.12);
+  color: #3a3428 !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,.6);
+}
+body.ios-theme main [class*="border-b-2"][class*="border-[#8b5cf6]"],
+body.ios-theme main [class*="border-b-2"][class*="border-purple"] {
+  background: linear-gradient(180deg, #fbf8f1 0%, #e9e2d1 100%) !important;
+  border-top-color: #fffdf6 !important;
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 2px 5px rgba(0,0,0,.2);
+}
+body.ios-theme main [class*="border-b-2"] + [class*="border-b-2"] {
+
+/* ============================================================
+   11. СООБЩЕНИЯ — переписка на деревянном столе
    ============================================================ */
 body.ios-theme[data-ios-page="messages"] main {
   background:
@@ -541,25 +579,15 @@ body.ios-theme[data-ios-page="messages"] main .sticky.top-0 {
   border-bottom: 2px solid #2e1c0c !important;
   box-shadow: inset 0 1px 0 rgba(255,220,170,.25), 0 3px 8px rgba(0,0,0,.4) !important;
 }
-body.ios-theme[data-ios-page="messages"] main .sticky.top-0 h1,
-body.ios-theme[data-ios-page="messages"] main .sticky.top-0 [class*="font-bold"] {
+body.ios-theme[data-ios-page="messages"] main .sticky.top-0 h1 {
   color: #f2e3c2 !important;
   text-shadow: 0 1px 0 rgba(255,230,190,.25), 0 -1px 1px rgba(0,0,0,.6);
 }
-/* Листы бумаги */
 body.ios-theme[data-ios-page="messages"] main [class*="rounded-bl-[4px]"],
 body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"] {
   border: 1px solid #cdc3a8 !important;
   border-radius: 10px 12px 10px 3px !important;
-  box-shadow:
-    0 2px 3px rgba(20,10,5,.35),
-    0 5px 10px rgba(20,10,5,.2),
-    inset 0 1px 0 rgba(255,255,255,.55) !important;
-  transform: rotate(-1.4deg);
-}
-body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"] {
-  border-radius: 12px 10px 3px 10px !important;
-  transform: rotate(1.2deg);
+  box-shadow: 0 2px 3px rgba(20,10,5,.35), 0 5px 10px rgba(20,10,5,.2), inset 0 1px 0 rgba(255,255,255,.55) !important;
 }
 body.ios-theme[data-ios-page="messages"] main [class*="rounded-bl-[4px]"] {
   background: var(--ios-noise), linear-gradient(178deg, #fffdf2 0%, #faf3dc 100%) !important;
@@ -580,7 +608,7 @@ body.ios-theme[data-ios-page="messages"] main [class*="rounded-bl-[4px]"] span,
 body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"] p,
 body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"] span {
   font-family: var(--sk-hand) !important;
-/* Канцелярские кнопки: красная у входящих, синяя у исходящих */
+}
 body.ios-theme[data-ios-page="messages"] main [class*="rounded-bl-[4px]"]::before,
 body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"]::before {
   content: "";
@@ -604,10 +632,6 @@ body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"]::befor
     radial-gradient(circle at 50% 62%, rgba(0,0,0,.35) 0%, transparent 60%),
     linear-gradient(160deg, #7fa8ff 0%, #2a52c8 60%, #122a70 100%);
 }
-body.ios-theme[data-ios-page="messages"] main [id^="msg-"] time {
-  font-family: var(--sk-hand); font-size: 11px; opacity: .65; font-style: italic;
-}
-/* Композер — деревянная полка с линованным блокнотом */
 body.ios-theme[data-ios-page="messages"] main textarea {
   background:
     repeating-linear-gradient(180deg, transparent 0 26px, rgba(70,110,170,.3) 26px 27px),
@@ -624,123 +648,9 @@ body.ios-theme[data-ios-page="messages"] main [data-ios-composer] {
   background: linear-gradient(180deg, #6b4e33 0%, #4e351d 100%) !important;
   border-top: 2px solid #2c1a0b !important;
   box-shadow: inset 0 1px 0 rgba(255,220,170,.2), 0 -4px 10px rgba(0,0,0,.35) !important;
-}
 
 /* ============================================================
-   9. ПРОФИЛЬ — кожаная шапка, латунный аватар, тиснение
-   ============================================================ */
-body.ios-theme[data-ios-page="user"] main {
-  background:
-    var(--ios-noise),
-    linear-gradient(180deg, #7c4b33 0%, #5a3018 60%, #3f2010 100%) !important;
-  background-size: 220px 220px, auto !important;
-  color: #f2e3c2 !important;
-}
-body.ios-theme[data-ios-page="user"] main h1,
-body.ios-theme[data-ios-page="user"] main [class*="font-black"],
-body.ios-theme[data-ios-page="user"] main [class*="font-bold"] {
-  color: #f2e3c2 !important;
-  text-shadow: 0 1px 0 rgba(255,235,195,.28), 0 -1px 1px rgba(20,8,0,.8) !important;
-}
-body.ios-theme[data-ios-page="user"] main [class*="text-gray-"],
-body.ios-theme[data-ios-page="user"] main [class*="dark:text-white"] {
-  color: #d8c6a4 !important;
-  text-shadow: none !important;
-}
-/* Имя пользователя / @ник / статус */
-body.ios-theme[data-ios-page="user"] main a[class*="font-bold"] {
-  letter-spacing: .01em;
-}
-/* Кнопки профиля — светлый текст с тенью */
-body.ios-theme[data-ios-page="user"] main button {
-  color: #f4ead2;
-  text-shadow: 0 1px 2px rgba(15,5,0,.65);
-}
-/* Табы профиля (Посты/Медиа/…) — металлические пластины */
-body.ios-theme main [class*="border-b-2"] {
-  background: linear-gradient(180deg, #e9e4d8 0%, #cfcbc0 100%) !important;
-  border: 1px solid #9a9488 !important;
-  border-radius: 6px 6px 0 0;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), inset 0 -2px 3px rgba(0,0,0,.12);
-  color: #3a3428 !important;
-  text-shadow: 0 1px 0 rgba(255,255,255,.6);
-}
-body.ios-theme main [class*="border-b-2"][class*="border-[#8b5cf6]"],
-body.ios-theme main [class*="border-b-2"][class*="border-purple"] {
-  background: linear-gradient(180deg, #fbf8f1 0%, #e9e2d1 100%) !important;
-  border-top-color: #fffdf6 !important;
-  transform: translateY(1px);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 2px 5px rgba(0,0,0,.2);
-}
-body.ios-theme main [class*="border-b-2"] + [class*="border-b-2"] {
-  border-left: 1px solid rgba(90,82,66,.35) !important;
-/* ============================================================
-   14. СПИСКИ УВЕДОМЛЕНИЙ / ЗАКЛАДОК — бумажные карточки
-   (data-ios-list / data-ios-tile проставляет IosChats/IosNotifications)
-   ============================================================ */
-body.ios-theme [data-ios-list] > *,
-body.ios-theme [data-ios-tile] {
-  position: relative;
-  background:
-    var(--ios-noise),
-    linear-gradient(180deg, #fdf9ec 0%, #f4ecd6 100%) !important;
-  background-size: 220px 220px, auto !important;
-  border: 1px solid #cfc2a2 !important;
-  border-radius: 10px !important;
-  box-shadow:
-    0 2px 4px rgba(0,0,0,.12),
-    0 6px 14px rgba(0,0,0,.13),
-    inset 0 1px 0 rgba(255,255,255,.7) !important;
-  margin: 8px 0 !important;
-  transform: rotate(var(--sk-rot, 0deg));
-  transition: transform 260ms cubic-bezier(.34,1.56,.64,1), box-shadow 260ms cubic-bezier(.25,.46,.45,.94);
-}
-body.ios-theme [data-ios-list] > :nth-child(odd) { --sk-rot: .35deg; }
-body.ios-theme [data-ios-list] > :nth-child(even) { --sk-rot: -.3deg; }
-body.ios-theme [data-ios-list] > *:hover { transform: rotate(0) translateY(-1px); }
-body.ios-theme [data-ios-list] > * p:first-of-type { font-size: 15px; font-weight: 600; color: var(--sk-body); }
-body.ios-theme [data-ios-list] > * time,
-body.ios-theme [data-ios-list] > * [class*="text-xs"] { font-size: 12px; color: var(--sk-faint); }
-
-/* Уведомления — телеграфная лента */
-body.ios-theme[data-ios-page="notifications"] [data-ios-list] > * {
-  background: linear-gradient(180deg, #f6ecc9 0%, #eeddb0 100%) !important;
-  border-left: 10px double #b9a06a !important;
-  border-right: 10px double #b9a06a !important;
-  border-radius: 2px !important;
-}
-body.ios-theme[data-ios-page="notifications"] [data-ios-list] > * p {
-  font-family: "Courier New", Courier, monospace;
-  font-weight: 700;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  color: #4a3a1e !important;
-}
-
-/* Закладки — страницы ежедневника со скрепкой */
-body.ios-theme[data-ios-page="bookmarks"] [data-ios-list] > * {
-  background:
-    repeating-linear-gradient(180deg, transparent 0 22px, rgba(74,102,140,.22) 22px 23px),
-    linear-gradient(180deg, #fffaf0 0%, #f7f0e0 100%) !important;
-}
-body.ios-theme[data-ios-page="bookmarks"] [data-ios-list] > * p {
-  font-family: var(--sk-hand);
-  font-size: 15px;
-  color: #2f3a63 !important;
-}
-body.ios-theme[data-ios-page="bookmarks"] [data-ios-list] > *::before {
-  content: "";
-  position: absolute;
-  top: 8px;
-  right: 14px;
-  width: 22px;
-  height: 34px;
-  border-radius: 3px;
-  border: 2px solid #a8a49a #8f8b80 #8f8b80 #a8a49a;
-  box-shadow: 0 1px 2px rgba(0,0,0,.2);
-}
-/* ============================================================
-   10. ПОЛЯ ВВОДА — углублённые колодцы
+   12. ПОЛЯ ВВОДА — углублённые колодцы
    ============================================================ */
 body.ios-theme main input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
 body.ios-theme .ist-root input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
@@ -750,19 +660,16 @@ body.ios-theme .ist-root input:not([type="checkbox"]):not([type="radio"]):not([t
   border-bottom-color: #f5efdd !important;
   border-radius: 9px;
   box-shadow:
-    inset 0 2px 5px rgba(100, 78, 40, 0.25),
+    inset 0 2px 5px rgba(100,78,40,.25),
     inset 0 -1px 0 rgba(255,255,255,.7),
     0 1px 0 rgba(255,255,255,.6) !important;
   color: #33302a !important;
   caret-color: var(--ios-blue);
 }
-body.ios-theme main textarea {
-  border-radius: 10px;
-  color: #33302a !important;
-}
+body.ios-theme main textarea { border-radius: 10px; color: #33302a !important; }
 
 /* ============================================================
-   11. КОМПОЗЕР ПОСТА — «старое письмо»
+   13. КОМПОЗЕР ПОСТА — «старое письмо»
    ============================================================ */
 body.ios-theme [data-ios-composer] {
   background:
@@ -775,315 +682,10 @@ body.ios-theme [data-ios-composer] {
     inset 0 1px 0 rgba(255,255,255,.6),
     inset 0 -3px 6px rgba(120,90,40,.12) !important;
 }
-/* Кнопка публикации — сургучная печать */
-body.ios-theme main button[data-ios-seal],
-body.ios-theme .ist-root button[data-ios-seal] {
-  width: 66px;
-  height: 66px;
-  min-width: 66px;
-  padding: 0 !important;
-  border-radius: 50% !important;
-  background:
-    radial-gradient(circle at 32% 26%, #ff9d8d 0%, #e6392a 45%, #a01a0d 82%, #6f0f05 100%) !important;
-  border: 2px solid #7c130a !important;
-  box-shadow:
-    0 6px 12px rgba(0,0,0,.4),
-    0 14px 26px rgba(160,30,15,.35),
-    inset 0 3px 5px rgba(255,255,255,.5),
-    inset 0 -5px 8px rgba(70,5,0,.6) !important;
-  color: #ffe9dd !important;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .07em;
-  line-height: 1.15;
-  text-transform: uppercase;
-  text-align: center;
-  text-shadow: 0 -1px 0 rgba(80,8,2,.85);
-  transition: transform 160ms cubic-bezier(.34,1.56,.64,1);
-}
-body.ios-theme main button[data-ios-seal]:active { transform: scale(.9) translateY(2px); }
 
 /* ============================================================
-   12. ВСПЛЫВАЮЩИЕ МЕНЮ / МОДАЛКИ — карточки на доске
+   14. ВСЕ СТРАНИЦЫ ПОЛЬЗОВАТЕЛЯ — подложки
    ============================================================ */
-body.ios-theme main [class*="rounded-2xl"][class*="bg-ivory"],
-body.ios-theme main [class*="rounded-xl"][class*="bg-ivory"],
-body.ios-theme main [class*="bg-ivory"][class*="border"] {
-  background:
-    var(--ios-noise),
-    linear-gradient(180deg, #fbf4dd 0%, #f0e5c8 100%) !important;
-  background-size: 200px 200px, auto !important;
-  border: 1px solid #b3a276 !important;
-  box-shadow:
-    0 10px 30px rgba(40,25,5,.35),
-    inset 0 1px 0 rgba(255,255,255,.65) !important;
-  color: var(--sk-body);
-}
-
-/* ============================================================
-   13. АНИМАЦИИ — пружины и физика
-   ============================================================ */
-body.ios-theme main [data-ios-post] {
-  animation: skCardIn 420ms cubic-bezier(.25,.46,.45,.94) backwards;
-}
-@keyframes skCardIn {
-/* ============================================================
-   16. 3D-ИКОНКИ САЙДБАРА (инжектит IosSidebar) + скрытие плоских SVG
-   ============================================================ */
-body.ios-theme [data-ios-sidebar] a.ios-has-3d > svg,
-body.ios-theme [data-ios-sidebar] a.ios-has-3d svg.lucide {
-  display: none !important;
-}
-body.ios-theme [data-ios-sidebar] .ios-3d-icon {
-  position: relative;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 auto;
-  border-radius: 9px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.4) 0%, rgba(255,255,255,0) 42%),
-    radial-gradient(circle at 30% 20%, #ffedb0 0%, #d8ab4e 36%, #8a6420 76%, #5c3f10 100%);
-  border: 1px solid #3f2a0c;
-  box-shadow:
-    inset 0 2px 3px rgba(255,250,220,.55),
-    inset 0 -3px 5px rgba(60,38,6,.6),
-    0 2px 4px rgba(0,0,0,.5);
-}
-body.ios-theme [data-ios-sidebar] a:hover .ios-3d-icon {
-  filter: drop-shadow(0 3px 5px rgba(0,0,0,.5)) drop-shadow(0 0 7px rgba(255,210,120,.45));
-}
-/* ---------- 17. АНИМАЦИЯ ОТПРАВКИ ПИСЬМА (.ios-send-*) ---------- */
-.ios-send-stage {
-  position: fixed;
-  inset: 0;
-  z-index: 2147482000;
-  pointer-events: none;
-  overflow: hidden;
-}
-.ios-send-envelope {
-  position: absolute;
-  left: 50%;
-  bottom: 30%;
-  width: 84px;
-  height: 60px;
-  transform: translateX(-50%);
-  animation: iosEnvelopeFly 1.5s cubic-bezier(.25,.46,.45,.94) forwards;
-}
-.ios-send-face {
-  position: absolute;
-  inset: 0;
-  border-radius: 6px;
-  box-shadow: 0 6px 16px rgba(0,0,0,.35);
-}
-.ios-send-paper {
-  background: linear-gradient(180deg, #fffdf2 0%, #f4ecd6 100%);
-  border: 1px solid #cfc2a2;
-}
-.ios-send-env {
-  background: linear-gradient(180deg, #d8bb7e 0%, #b8934a 60%, #8a6420 100%);
-  border: 1px solid #6b4a10;
-  opacity: 0;
-  animation: iosEnvelopeClose 500ms 350ms cubic-bezier(.34,1.56,.64,1) forwards;
-}
-.ios-send-env::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 6px;
-  background:
-    linear-gradient(135deg, transparent 0 46%, rgba(122,90,28,.85) 48%, rgba(255,235,190,.5) 50%, rgba(122,90,28,.85) 52%, transparent 54%),
-    linear-gradient(225deg, transparent 0 46%, rgba(122,90,28,.85) 48%, rgba(255,235,190,.5) 50%, rgba(122,90,28,.85) 52%, transparent 54%);
-}
-.ios-send-stamp {
-  position: absolute;
-  left: 50%;
-  top: 42%;
-  transform: translate(-50%, -50%) scale(2.4);
-  padding: 10px 18px;
-  border-radius: 8px;
-  background: rgba(35, 30, 22, 0.92);
-  border: 3px double #e8d9a8;
-  color: #ffe9b0 !important;
-  font-family: "Courier New", Courier, monospace;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: .08em;
-  opacity: 0;
-  animation: iosStampIn 420ms 1450ms cubic-bezier(.34,1.56,.64,1) forwards;
-}
-@keyframes iosEnvelopeClose { to { opacity: 1; } }
-@keyframes iosEnvelopeFly {
-  0%   { transform: translateX(-50%) translateY(0) rotate(0deg); opacity: 1; }
-  55%  { transform: translateX(-50%) translateY(-40px) rotate(-6deg); opacity: 1; }
-  100% { transform: translateX(-50%) translateY(-70vh) rotate(8deg) scale(.6); opacity: 0; }
-}
-@keyframes iosStampIn {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(2.4) rotate(-8deg); }
-  to   { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-3deg); }
-}
-
-/* ---------- 18. МЕЛОЧИ: блик на круглых кнопках, чекбоксы ---------- */
-body.ios-theme main button.rounded-full::before,
-body.ios-theme .ist-root button.rounded-full::before {
-  border-radius: 50%;
-}
-body.ios-theme main input[type="checkbox"],
-body.ios-theme main input[type="radio"] {
-  accent-color: var(--ios-blue);
-}
-body.ios-theme [data-ios-sidebar] .ios-stitch {
-  display: block;
-  height: 0;
-  margin: 2px 16px;
-  border-top: 2px dashed rgba(240,222,180,.35);
-  filter: drop-shadow(0 1px 0 rgba(0,0,0,.5));
-}
-  from { opacity: 0; transform: translateY(16px) scale(.985); }
-/* ============================================================
-   15. ПЕРЕКЛЮЧАТЕЛЬ ТЕМ В НАСТРОЙКАХ (.ist-root)
-   ============================================================ */
-body.ios-theme .ist-root {
-  position: relative;
-  padding: 16px 18px 14px;
-  margin: 14px 0;
-  background: linear-gradient(150deg, #e2ddd2 0%, #d3cdc0 40%, #c7c1b3 100%);
-  border: 1px solid #a39a88;
-  border-radius: 14px;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.75),
-    inset 0 -3px 6px rgba(60,50,30,.12),
-    0 6px 16px rgba(0,0,0,.16);
-}
-body.ios-theme .ist-root::before,
-body.ios-theme .ist-root::after {
-  content: "";
-  position: absolute;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fff 0%, #c9c5bb 50%, #8f8b80 100%);
-  box-shadow: inset 0 -1px 1px rgba(0,0,0,.4);
-  pointer-events: none;
-}
-body.ios-theme .ist-root::before { top: 9px; left: 11px; }
-body.ios-theme .ist-root::after { bottom: 9px; right: 11px; }
-body.ios-theme .ist-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-body.ios-theme .ist-title {
-  font-weight: 800; font-size: 15px; color: #241d12 !important;
-  text-shadow: 0 1px 0 rgba(255,255,255,.6);
-}
-body.ios-theme .ist-subtitle { font-size: 12px; color: #6e675a; margin-top: 2px; }
-body.ios-theme .ist-badge {
-  font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
-  padding: 3px 8px; border-radius: 999px;
-  background: linear-gradient(180deg, #f2d489 0%, #c99b2f 100%);
-  border: 1px solid #7e5a12;
-  color: #3c2a08 !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.5);
-}
-
-/* Тумблер «Звуки интерфейса» */
-body.ios-theme .ios-sfx-row {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-top: 12px; padding: 8px 10px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, rgba(0,0,0,.08) 0%, rgba(0,0,0,.02) 100%);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,.12);
-}
-body.ios-theme .ios-sfx-label { font-size: 13px; font-weight: 600; color: #33302a !important; }
-body.ios-theme .ios-sfx-switch {
-  position: relative;
-  width: 52px; height: 30px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #c7c1b1 0%, #b0a996 100%);
-  border: 1px solid #8f8875;
-  box-shadow: inset 0 2px 5px rgba(0,0,0,.3), inset 0 -1px 0 rgba(255,255,255,.5);
-  transition: background 220ms cubic-bezier(.25,.46,.45,.94);
-}
-body.ios-theme .ios-sfx-switch::after {
-  content: "";
-  position: absolute;
-  top: 2px; left: 2px;
-  width: 24px; height: 24px;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #ffffff 0%, #e8e3d6 100%);
-  border: 1px solid #a29a85;
-  box-shadow: 0 2px 4px rgba(0,0,0,.35), inset 0 1px 0 #fff;
-  transition: transform 220ms cubic-bezier(.34,1.56,.64,1);
-}
-body.ios-theme .ios-sfx-switch[data-state="on"] { background: linear-gradient(180deg, #5ede7c 0%, #34c759 100%); border-color: #2fae55; }
-body.ios-theme .ios-sfx-switch[data-state="on"]::after { transform: translateX(22px); }
-body.ios-theme .ios-sfx-switch:active::after { box-shadow: 0 1px 2px rgba(0,0,0,.4), inset 0 1px 0 #fff; }
-
-/* Радио-опции тем */
-body.ios-theme .ios-theme-selector { display: flex; flex-direction: column; gap: 6px; }
-body.ios-theme .ios-theme-option {
-  display: flex; align-items: center; gap: 10px;
-  width: 100%;
-  padding: 9px 12px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #f7f2e2 0%, #e6dcc2 100%);
-  border: 1px solid #b3a687;
-  border-top-color: #fdf8ec;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.8), 0 2px 4px rgba(0,0,0,.14);
-  color: #33302a !important;
-  font-size: 14px; font-weight: 600;
-  text-align: left;
-  transition: transform 140ms cubic-bezier(.34,1.56,.64,1), box-shadow 140ms;
-}
-body.ios-theme .ios-theme-option:hover { transform: translateY(-1px); }
-body.ios-theme .ios-theme-option:active { transform: translateY(1px) scale(.99); box-shadow: inset 0 2px 5px rgba(80,60,25,.3); }
-body.ios-theme .ios-theme-option.is-active {
-  background: linear-gradient(180deg, #fdf8ec 0%, #f1e7cc 100%);
-  border-color: #9a7a3c;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.95),
-    0 0 0 2px rgba(201,155,47,.45),
-    0 4px 9px rgba(0,0,0,.16);
-}
-body.ios-theme .ios-theme-dot {
-  width: 14px; height: 14px; border-radius: 50%;
-  border: 1px solid rgba(0,0,0,.35);
-  box-shadow: inset 0 1px 2px rgba(0,0,0,.3), inset 0 -1px 0 rgba(255,255,255,.4);
-  flex: 0 0 auto;
-}
-body.ios-theme .ios-dot--standard { background: radial-gradient(circle at 35% 30%, #ffffff 0%, #d9d4c8 60%, #9a9488 100%); }
-body.ios-theme .ios-dot--zune { background: radial-gradient(circle at 35% 30%, #ff9dd2 0%, #f0489e 55%, #a3136a 100%); }
-body.ios-theme .ios-dot--ios { background: radial-gradient(circle at 35% 30%, #f7e3ab 0%, #d8ab4e 55%, #8a6420 100%); }
-body.ios-theme .ios-theme-option-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-body.ios-theme .ios-theme-option-label { font-weight: 700; color: #241d12 !important; }
-body.ios-theme .ios-theme-option-hint { font-size: 11px; color: #6e675a !important; }
-body.ios-theme .ios-theme-check {
-  width: 20px; height: 20px; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 800;
-  color: #3c2a08 !important;
-  background: radial-gradient(circle at 35% 30%, #ffe9a8 0%, #d89a2a 60%, #8a5a10 100%);
-/* ============================================================
-   19. ВСЕ СТРАНИЦЫ ПОЛЬЗОВАТЕЛЯ — карточки и подложки
-   ============================================================ */
-/* Бумажный материал для любых секционных карточек (div/section,
-   кнопки не задеваем — они оформлены в п.3) */
-body.ios-theme main div[class*="rounded-xl"],
-body.ios-theme main div[class*="rounded-2xl"],
-body.ios-theme main section[class*="rounded-xl"],
-body.ios-theme main section[class*="rounded-2xl"] {
-  background:
-    var(--ios-noise),
-    linear-gradient(180deg, #fdf9ec 0%, #f2e9d3 100%) !important;
-  background-size: 200px 200px, auto !important;
-  border: 1px solid #cfc2a2 !important;
-  border-top-color: #fffdf5 !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.7),
-    0 2px 5px rgba(60,45,20,.16) !important;
-  color: #33302a;
-}
-body.ios-theme main div[class*="rounded-xl"][class*="hover:bg"]:hover {
-  background: linear-gradient(180deg, #f8f0db 0%, #ece1c6 100%) !important;
-}
-
-/* ---------- 19.1 ВХОД / РЕГИСТРАЦИЯ ---------- */
 body.ios-theme[data-ios-page="login"],
 body.ios-theme[data-ios-page="register"] {
   background:
@@ -1104,13 +706,6 @@ body.ios-theme[data-ios-page="register"] [class*="rounded-2xl"] {
     0 20px 50px rgba(0,0,0,.4),
     inset 0 1px 0 rgba(255,255,255,.6) !important;
 }
-body.ios-theme[data-ios-page="login"] h1,
-body.ios-theme[data-ios-page="register"] h1 {
-  color: #241d12 !important;
-  text-shadow: 0 1px 0 rgba(255,255,255,.5);
-}
-
-/* ---------- 19.2 НАСТРОЙКИ + nebula-settings ---------- */
 body.ios-theme[data-ios-page="settings"],
 body.ios-theme[data-ios-page="nebula-settings"] {
   background:
@@ -1127,62 +722,7 @@ body.ios-theme[data-ios-page="nebula-settings"] aside {
   border-radius: 12px !important;
   box-shadow: inset 0 1px 0 rgba(255,230,180,.2), 0 4px 10px rgba(0,0,0,.3) !important;
 }
-body.ios-theme[data-ios-page="settings"] aside a,
-body.ios-theme[data-ios-page="nebula-settings"] aside a {
-  color: #ecd7b2 !important;
-  border-radius: 8px;
-  text-shadow: 0 -1px 1px rgba(0,0,0,.8);
-}
-body.ios-theme[data-ios-page="settings"] aside a[class*="bg-"],
-body.ios-theme[data-ios-page="nebula-settings"] aside a[class*="bg-"] {
-  background: linear-gradient(180deg, rgba(0,0,0,.4) 0%, rgba(0,0,0,.16) 100%) !important;
-  color: #ffdf9e !important;
-/* ---------- 19.3 КАНАЛЫ + правая панель ---------- */
-body.ios-theme[data-ios-page="channels"] main {
-  background: var(--ios-noise), var(--ios-bg-gradient) !important;
-  background-size: 220px 220px, auto !important;
-}
-body.ios-theme aside[class*="w-80"] {
-  position: relative;
-  background:
-    var(--ios-noise),
-    linear-gradient(180deg, #f7f2e2 0%, #efe7d0 100%) !important;
-  background-size: 220px 220px, auto !important;
-  border-left: 6px solid var(--sk-leather-2) !important;
-  box-shadow: inset 8px 0 12px -8px rgba(0,0,0,.55) !important;
-}
-body.ios-theme aside[class*="w-80"]::before {
-  content: "";
-  position: absolute;
-  top: 0; bottom: 0; left: -6px;
-  width: 6px;
-  background: repeating-linear-gradient(180deg,
-    var(--sk-leather-1) 0 10px, var(--sk-leather-2) 10px 12px);
-  pointer-events: none;
-}
-
-/* ---------- 19.4 СТАТИСТИКА — таблицы на бумаге ---------- */
-body.ios-theme main table {
-  background: var(--ios-noise), linear-gradient(180deg, #fdf9ec 0%, #f2e9d3 100%) !important;
-  background-size: 220px 220px, auto !important;
-  border: 1px solid #cfc2a2 !important;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(60,45,20,.16), inset 0 1px 0 rgba(255,255,255,.7) !important;
-  border-collapse: separate;
-  border-spacing: 0;
-  overflow: hidden;
-}
-body.ios-theme main table th {
-  background: linear-gradient(180deg, #e8d9a8 0%, #c8a94e 100%) !important;
-  color: #3c2a08 !important;
-  font-weight: 800;
-  border-bottom: 2px solid #5f4310 !important;
-  text-shadow: 0 1px 0 rgba(255,250,210,.5);
-}
-body.ios-theme main table tr { border-bottom: 1px solid #cfc2a2 !important; }
-body.ios-theme main table td { color: #33302a !important; }
-
-/* ---------- 19.5 КОНТЕНТНЫЕ СТРАНИЦЫ ---------- */
+body.ios-theme[data-ios-page="channels"],
 body.ios-theme[data-ios-page="rules"],
 body.ios-theme[data-ios-page="team"],
 body.ios-theme[data-ios-page="support"],
@@ -1195,102 +735,96 @@ body.ios-theme[data-ios-page="invite"] {
   background: var(--ios-noise), var(--ios-bg-gradient) !important;
   background-size: 220px 220px, auto !important;
 }
-body.ios-theme[data-ios-page="rules"] main div[class*="rounded-xl"] {
+body.ios-theme main table {
+  background: var(--ios-noise), linear-gradient(180deg, #fdf9ec 0%, #f2e9d3 100%) !important;
+  border: 1px solid #cfc2a2 !important;
   border-radius: 10px !important;
+  box-shadow: 0 2px 5px rgba(60,45,20,.16), inset 0 1px 0 rgba(255,255,255,.7) !important;
+  border-collapse: separate;
 }
+body.ios-theme main table th {
+  background: linear-gradient(180deg, #e8d9a8 0%, #c8a94e 100%) !important;
+  color: #3c2a08 !important;
+  font-weight: 800;
+  border-bottom: 2px solid #5f4310 !important;
 
-/* ---------- 19.6 NEBULA-ПРОФИЛЬ — как пользовательский ---------- */
-body.ios-theme[data-ios-page="nebula-profile"] main {
+/* ============================================================
+   15. 3D-ИКОНКИ САЙДБАРА + анимация отправки
+   ============================================================ */
+body.ios-theme [data-ios-sidebar] .ios-3d-icon,
+body.ios-theme aside .ios-3d-icon {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 9px;
   background:
-    var(--ios-noise),
-    linear-gradient(180deg, #7c4b33 0%, #5a3018 60%, #3f2010 100%) !important;
-  background-size: 220px 220px, auto !important;
-  color: #f2e3c2 !important;
-}
-body.ios-theme[data-ios-page="nebula-profile"] main [class*="font-bold"],
-body.ios-theme[data-ios-page="nebula-profile"] main h1 {
-  color: #f2e3c2 !important;
-  text-shadow: 0 1px 0 rgba(255,235,195,.28), 0 -1px 1px rgba(20,8,0,.8) !important;
-}
-  box-shadow: inset 0 3px 8px rgba(0,0,0,.6), 0 0 16px rgba(255,180,60,.3);
-}
-  box-shadow: 0 0 6px rgba(216,154,42,.6), inset 0 -1px 1px rgba(0,0,0,.3);
-}
-body.ios-theme .ios-theme-shell { display: flex; flex-direction: column; gap: 10px; }
-
-/* ---------- 15.1 ОТДЕЛЬНЫЙ ТУМБЛЕР «ОБОЛОЧКА OLD iOS» ---------- */
-body.ios-theme .ios-shell-toggle {
-  margin-top: 16px;
-}
-body.ios-theme .ios-shell-toggle .ist-head {
-  margin-bottom: 8px;
-}
-/* Тумблер и вне ios-темы (на стандартной) — те же материалы,
-   чтобы секция выглядела одинаково до и после включения */
-body:not(.ios-theme) .ios-shell-toggle {
-  padding: 16px 18px 14px;
-  margin: 14px 0;
-  background: linear-gradient(150deg, #e9e6df 0%, #d7d2c8 50%, #c4bfb3 100%);
-  border: 1px solid #a8a293;
-  border-radius: 14px;
+    linear-gradient(180deg, rgba(255,255,255,.4) 0%, rgba(255,255,255,0) 42%),
+    radial-gradient(circle at 30% 20%, #ffedb0 0%, #d8ab4e 36%, #8a6420 76%, #5c3f10 100%);
+  border: 1px solid #3f2a0c;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.75),
-    0 6px 16px rgba(0,0,0,.14);
-  position: relative;
+    inset 0 2px 3px rgba(255,250,220,.55),
+    inset 0 -3px 5px rgba(60,38,6,.6),
+    0 2px 4px rgba(0,0,0,.5);
 }
-body:not(.ios-theme) .ios-shell-toggle .ist-head {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+body.ios-theme [data-ios-sidebar] a.ios-has-3d > svg,
+body.ios-theme [data-ios-sidebar] a.ios-has-3d svg.lucide {
+  display: none !important;
 }
-body:not(.ios-theme) .ios-shell-toggle .ist-title {
-  font-weight: 800; font-size: 15px; color: #241d12;
-  text-shadow: 0 1px 0 rgba(255,255,255,.6);
+
+/* Анимация отправки письма */
+.ios-send-stage { position: fixed; inset: 0; z-index: 2147482000; pointer-events: none; overflow: hidden; }
+.ios-send-envelope {
+  position: absolute;
+  left: 50%;
+  bottom: 30%;
+  width: 84px;
+  height: 60px;
+  animation: iosFld 1.5s cubic-bezier(.25,.46,.45,.94) forwards;
 }
-body:not(.ios-theme) .ios-shell-toggle .ist-subtitle { font-size: 12px; color: #6e675a; margin-top: 2px; }
-body:not(.ios-theme) .ios-shell-toggle .ist-badge {
-  font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
-  padding: 3px 8px; border-radius: 999px;
-  background: linear-gradient(180deg, #f2d489 0%, #c99b2f 100%);
-  border: 1px solid #7e5a12;
-  color: #3c2a08;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.5);
+@keyframes iosFld {
+  0%   { transform: translateX(-50%) translateY(0); opacity: 1; }
+  60%  { transform: translateX(-50%) translateY(-46px); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(-72vh) scale(.6); opacity: 0; }
 }
-body:not(.ios-theme) .ios-shell-toggle .ios-sfx-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, rgba(0,0,0,.08) 0%, rgba(0,0,0,.02) 100%);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,.12);
+.ios-send-face { position: absolute; inset: 0; border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,.35); }
+.ios-send-paper { background: linear-gradient(180deg, #fffdf2 0%, #f4ecd6 100%); border: 1px solid #cfc2a2; }
+.ios-send-env {
+  background: linear-gradient(180deg, #d8bb7e 0%, #b8934a 60%, #8a6420 100%);
+  border: 1px solid #6b4a10;
+  border-radius: 6px;
+  opacity: 0;
+  animation: iosFldClos .5s .35s cubic-bezier(.34,1.56,.64,1) forwards;
 }
-body:not(.ios-theme) .ios-shell-toggle .ios-sfx-label { font-size: 13px; font-weight: 600; color: #33302a; }
-body:not(.ios-theme) .ios-shell-toggle .ios-sfx-switch {
-  position: relative;
-  width: 52px; height: 30px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #c7c1b1 0%, #b0a996 100%);
-  border: 1px solid #8f8875;
-  box-shadow: inset 0 2px 5px rgba(0,0,0,.3), inset 0 -1px 0 rgba(255,255,255,.5);
-  transition: background 220ms cubic-bezier(.25,.46,.45,.94);
-}
-body:not(.ios-theme) .ios-shell-toggle .ios-sfx-switch::after {
+@keyframes iosFldClos { to { opacity: 1; } }
+.ios-send-env::before {
   content: "";
   position: absolute;
-  top: 2px; left: 2px;
-  width: 24px; height: 24px;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #ffffff 0%, #e8e3d6 100%);
-  border: 1px solid #a29a85;
-  box-shadow: 0 2px 4px rgba(0,0,0,.35), inset 0 1px 0 #fff;
-  transition: transform 220ms cubic-bezier(.34,1.56,.64,1);
+  inset: 0;
+  border-radius: 6px;
+  background: linear-gradient(135deg, transparent 0 46%, rgba(122,90,28,.85) 48%, rgba(255,235,190,.5) 50%, rgba(122,90,28,.85) 52%, transparent 54%);
 }
-body:not(.ios-theme) .ios-shell-toggle .ios-sfx-switch[data-state="on"] {
-  background: linear-gradient(180deg, #5ede7c 0%, #34c759 100%);
-  border-color: #2fae55;
+.ios-send-stamp {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: rgba(35,30,22,.92);
+  border: 3px double #e8d9a8;
+  color: #ffe9b0;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  opacity: 0;
+  animation: iosFldStamp .42s 1.45s cubic-bezier(.34,1.56,.64,1) forwards;
 }
-body:not(.ios-theme) .ios-shell-toggle .ios-sfx-switch[data-state="on"]::after { transform: translateX(22px); }
-/* ---------- 15.2 Переключатель тем на СТАНДАРТНОЙ оболочке ----------
-   Эти классы рендерятся всегда (пока включён флаг смены оболочек),
-   в том числе когда тема iOS ещё НЕ включена — поэтому оформление
-   глобальное, без body.ios-theme (как и было в старом файле). */
+@keyframes iosFldStamp {
+  from { opacity: 0; transform: translate(-50%,-50%) scale(2.4) rotate(-8deg); }
+/* ============================================================
+   16. ПЕРЕКЛЮЧАТЕЛЬ ТЕМ — глобальный (и на стандартной оболочке)
+   ============================================================ */
 .ist-root {
   position: relative;
   padding: 16px 18px 14px;
@@ -1317,10 +851,7 @@ body:not(.ios-theme) .ios-shell-toggle .ios-sfx-switch[data-state="on"]::after {
 .ist-root::before { top: 9px; left: 11px; }
 .ist-root::after { bottom: 9px; right: 11px; }
 .ist-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.ist-title {
-  font-weight: 800; font-size: 15px; color: #241d12;
-  text-shadow: 0 1px 0 rgba(255,255,255,.6);
-}
+.ist-title { font-weight: 800; font-size: 15px; color: #241d12; text-shadow: 0 1px 0 rgba(255,255,255,.6); }
 .ist-subtitle { font-size: 12px; color: #6e675a; margin-top: 2px; }
 .ist-badge {
   font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
@@ -1343,10 +874,8 @@ body:not(.ios-theme) .ios-shell-toggle .ios-sfx-switch[data-state="on"]::after {
   color: #33302a;
   font-size: 14px; font-weight: 600;
   text-align: left;
-  transition: transform 140ms cubic-bezier(.34,1.56,.64,1), box-shadow 140ms;
 }
 .ios-theme-option:hover { transform: translateY(-1px); }
-.ios-theme-option:active { transform: translateY(1px) scale(.99); box-shadow: inset 0 2px 5px rgba(80,60,25,.3); }
 .ios-theme-option.is-active {
   background: linear-gradient(180deg, #fdf8ec 0%, #f1e7cc 100%);
   border-color: #9a7a3c;
@@ -1361,7 +890,7 @@ body:not(.ios-theme) .ios-shell-toggle .ios-sfx-switch[data-state="on"]::after {
   box-shadow: inset 0 1px 2px rgba(0,0,0,.3), inset 0 -1px 0 rgba(255,255,255,.4);
   flex: 0 0 auto;
 }
-.ios-dot--standard { background: radial-gradient(circle at 35% 30%, #ffffff 0%, #d9d4c8 60%, #9a9488 100%); }
+.ios-dot--standard { background: radial-gradient(circle at 35% 30%, #fff 0%, #d9d4c8 60%, #9a9488 100%); }
 .ios-dot--zune { background: radial-gradient(circle at 35% 30%, #ff9dd2 0%, #f0489e 55%, #a3136a 100%); }
 .ios-dot--ios { background: radial-gradient(circle at 35% 30%, #f7e3ab 0%, #d8ab4e 55%, #8a6420 100%); }
 .ios-theme-option-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
@@ -1391,7 +920,6 @@ body:not(.ios-theme) .ios-shell-toggle .ios-sfx-switch[data-state="on"]::after {
   background: linear-gradient(180deg, #c7c1b1 0%, #b0a996 100%);
   border: 1px solid #8f8875;
   box-shadow: inset 0 2px 5px rgba(0,0,0,.3), inset 0 -1px 0 rgba(255,255,255,.5);
-  transition: background 220ms cubic-bezier(.25,.46,.45,.94);
 }
 .ios-sfx-switch::after {
   content: "";
@@ -1399,7 +927,7 @@ body:not(.ios-theme) .ios-shell-toggle .ios-sfx-switch[data-state="on"]::after {
   top: 2px; left: 2px;
   width: 24px; height: 24px;
   border-radius: 50%;
-  background: linear-gradient(180deg, #ffffff 0%, #e8e3d6 100%);
+  background: linear-gradient(180deg, #fff 0%, #e8e3d6 100%);
   border: 1px solid #a29a85;
   box-shadow: 0 2px 4px rgba(0,0,0,.35), inset 0 1px 0 #fff;
   transition: transform 220ms cubic-bezier(.34,1.56,.64,1);
@@ -1410,26 +938,34 @@ body:not(.ios-theme) .ios-shell-toggle .ios-sfx-switch[data-state="on"]::after {
 }
 .ios-sfx-switch[data-state="on"]::after { transform: translateX(22px); }
 .ios-sfx-switch:active::after { box-shadow: 0 1px 2px rgba(0,0,0,.4), inset 0 1px 0 #fff; }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-body.ios-theme main button {
-  will-change: transform;
-}
-}
-}
-}
-body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] p span[class*="font-semibold"] { color: #241a0d !important; }
-body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] p:last-child { color: #8b7b5e !important; font-family: var(--sk-hand); font-size: 11px; }
-body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] div[class*="w-[3px]"] { background: #8a5a24 !important; }
-}
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
+
+  to   { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(-3deg); }
 }
 
-/* Danger / secondary цветные */
-body.ios-theme main button[class*="text-red"],
-body.ios-theme main button[class*="bg-red"] {
-  color: #a81f10 !important;
-  text-shadow: none;
+  text-shadow: 0 1px 0 rgba(255,250,210,.5);
+}
+body.ios-theme main table td { color: #33302a !important; }
+
+}
+
+  border-left: 1px solid rgba(90,82,66,.35) !important;
+}
+
+}
+
+body.ios-theme main [class*="sticky"][class*="top-0"] [class*="font-"] {
+  color: #3a3428 !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,.65), 0 -1px 0 rgba(90,75,45,.35);
+}
+
+  letter-spacing: .06em;
+}
+
+  text-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 2px 4px !important;
+  font-size: 12px !important;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
