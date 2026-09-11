@@ -219,6 +219,7 @@ export const Post = memo(function Post({
   replies_count,
   created_at,
   views_count,
+  edited_at,
   showFullReplies = true,
   repost_of,
   is_repost,
@@ -247,6 +248,7 @@ export const Post = memo(function Post({
   replies_count: number;
   created_at: string;
   views_count?: number;
+  edited_at?: string | null;
   showFullReplies?: boolean;
   repost_of?: any;
   is_repost?: boolean;
@@ -308,7 +310,13 @@ export const Post = memo(function Post({
     const [editing, setEditing] = useState(false);
     const [editText, setEditText] = useState(text);
     const [displayText, setDisplayText] = useState(text);
-    const [isEdited, setIsEdited] = useState(false);
+    // ✏️ Флаг «изменено» инициализируем из серверного edited_at, чтобы он
+    // держался после перезагрузки (раньше был локальный useState(false) и
+    // пропадал). Синхронизируем при смене поста id/edited_at.
+    const [isEdited, setIsEdited] = useState(!!edited_at);
+    useEffect(() => {
+      setIsEdited(!!edited_at);
+    }, [id, edited_at]);
     const [savingEdit, setSavingEdit] = useState(false);
     const [showEcho, setShowEcho] = useState(false); // Состояние для Эхо
     // 🆕 Реакции на посты (одна реакция на юзера)

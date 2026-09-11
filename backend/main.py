@@ -2783,6 +2783,7 @@ def get_single_post(
                 "author_role": get_author_role(orig_author, session) if orig_author else None,
                 "text": orig.text, "media_url": orig.media_url,
                 "media_type": orig.media_type, "created_at": orig.created_at.isoformat(),
+                "edited_at": orig.edited_at.isoformat() if orig.edited_at else None,
             }
             is_repost = not post.text.strip()
             is_quote = bool(post.text.strip())
@@ -2805,6 +2806,7 @@ def get_single_post(
         "dislikes_count": dislikes_count, "disliked_by_me": disliked_by_me,
         "replies_count": replies_count, "views_count": post.views_count or 0,
         "created_at": post.created_at.isoformat(), "reply_to_id": post.reply_to_id,
+        "edited_at": post.edited_at.isoformat() if post.edited_at else None,
         "repost_of": repost_data, "is_repost": is_repost, "is_quote": is_quote,
     }
 
@@ -3184,6 +3186,7 @@ def list_bookmarks(
             "views_count": post.views_count or 0,
             # ✅ ИСПРАВЛЕНО: заменили 'p' на 'post' и добавили безопасный .isoformat() для времени
             "created_at": post.created_at.isoformat() if post.created_at else None,
+            "edited_at": post.edited_at.isoformat() if post.edited_at else None,
             "media_type": post.media_type,  # 🆕
         })
         
@@ -10176,6 +10179,9 @@ async def edit_post(
             check_sanction_rights(user, author, session, "редактировать посты этого пользователя")
     old_text = post.text
     post.text = text.strip()
+    # ✏️ Метка «изменено»: без неё флаг не сохраняется в БД и пропадает
+    # после перезагрузки (фронт видел только локальный стейт).
+    post.edited_at = utcnow()
     session.add(post)
     log_action(session, user.id, "edit_post",
                target_type="post", target_id=post_id,
