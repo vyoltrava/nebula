@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Post } from "@/components/Post";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
+import { onFeedRefresh } from "@/lib/events";
 
 export default function TagPage() {
   const { t } = useI18n();
@@ -14,14 +15,21 @@ export default function TagPage() {
 
   useEffect(() => {
     if (!tagName) return;
-    
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tags/${tagName}/posts`)
-      .then((r) => {
-        if (r.ok) return r.json();
-        throw new Error("Failed to load posts");
-      })
-      .then(setPosts)
-      .catch(console.error);
+
+    const load = () => {
+      // 🏷 cache-busting: свежие посты тега без HTTP/SW-кэша
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tags/${encodeURIComponent(tagName)}/posts?_=${Date.now()}`, { cache: "no-store" })
+        .then((r) => {
+          if (r.ok) return r.json();
+          throw new Error("Failed to load posts");
+        })
+        .then(setPosts)
+        .catch(console.error);
+    };
+    load();
+    // ✏️ После правки поста (меняется хэштег) — перечитываем список
+    const cleanup = onFeedRefresh(load);
+    return cleanup;
   }, [tagName]);
 
   return (

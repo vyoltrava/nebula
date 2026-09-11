@@ -18,13 +18,17 @@ export function RightPanel() {
   const { t } = useI18n();
 
   async function load() {
-    const tagsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tags/popular`);
+    // 🏷 cache-busting + no-store: обходим HTTP-кэш браузера и кэш Service Worker
+    //    (CACHE_API), иначе старые теги могут висеть после правки хэштега в посте.
+    const bust = `_=${Date.now()}`;
+    const tagsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tags/popular?${bust}`, { cache: "no-store" });
     if (tagsRes.ok) setTags(await tagsRes.json());
 
     const token = getToken();
     if (token) {
-      const authRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/recommended`, {
+      const authRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/recommended?${bust}`, {
         headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
       });
       if (authRes.ok) setAuthors(await authRes.json());
     }

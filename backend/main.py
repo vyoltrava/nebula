@@ -2143,6 +2143,7 @@ def get_user_posts(
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
             "media_type": p.media_type,  # 🆕
             "repost_of": repost_data,      # 🆕
             "is_repost": is_repost,         # 🆕
@@ -2363,6 +2364,7 @@ def search(
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
             "repost_of": repost_data,
             "is_repost": is_repost,
             "is_quote": is_quote,
@@ -2512,6 +2514,7 @@ def get_following_posts(
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
             "media_type": p.media_type,  # 🆕
             "repost_of": repost_data,
             "is_repost": is_repost,
@@ -2584,6 +2587,7 @@ def get_liked_posts(
             "views_count": p.views_count or 0,
             "media_type": p.media_type,  # 🆕
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
         })
     return result
 
@@ -2676,6 +2680,7 @@ def get_replies(post_id: int, session: Session = Depends(get_session)):
             "parent": parent_info,
             "media_type": p.media_type,  # 🆕
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
         })
 
     return result
@@ -2736,6 +2741,7 @@ def get_echo_tree(post_id: int, session: Session = Depends(get_session)):
             "text": p.text,
             "media_url": p.media_url,
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
             "repost_of_id": p.repost_of_id,
             "is_quote": bool(p.text.strip()),
             "likes_count": likes_map.get(p.id, 0),
@@ -3332,6 +3338,7 @@ def get_posts(
                 "media_url": op.media_url,
                 "media_type": op.media_type,  # ✅ op, не p!
                 "created_at": op.created_at.isoformat(),
+                "edited_at": op.edited_at.isoformat() if op.edited_at else None,
             }
 
     liked_ids = set()
@@ -3400,6 +3407,7 @@ def get_posts(
             "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_map.get(p.id, 0),
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
             "views_count": p.views_count or 0,
             "repost_of": repost_data,
             "is_repost": is_repost,
@@ -3878,6 +3886,7 @@ def tag_posts(tag_name: str, session: Session = Depends(get_session)):
             "replies_count": replies_map.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
             "media_type": p.media_type,  # 🆕
         })
     return result
