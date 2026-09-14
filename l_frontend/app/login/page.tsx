@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { setToken } from "@/lib/auth";
 import { swapLoginQr } from "@/lib/qr";
-import { ShieldCheck, X } from "lucide-react";
+import QRScanner from "@/components/qr/QRScanner";
+import { ShieldCheck, X, QrCode } from "lucide-react";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/Button";
@@ -26,6 +27,7 @@ export default function LoginPage() {
   const [twoFACode, setTwoFACode] = useState("");
   const [loading2FA, setLoading2FA] = useState(false);
   const [qrStatus, setQrStatus] = useState("");
+  const [scanOpen, setScanOpen] = useState(false);
 
   // QR-вход: переход по ссылке /login?action=qrauth&code=… (после сканирования QR)
   const qrLogin = async (code: string) => {
@@ -47,6 +49,18 @@ export default function LoginPage() {
     if (params.get("action") === "qrauth" && code) qrLogin(code);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Сканер в окне логина: QR входа → авто-вход, ссылка на профиль → переход
+  const handleScan = (text: string) => {
+    if (!text) return;
+    const m = text.match(/\/login\?action=qrauth&code=([A-Za-z0-9_\-]+)/);
+    if (m) {
+      qrLogin(m[1]);
+      return;
+    }
+    const path = text.replace(/^https?:\/\/[^/]+/, "");
+    if (path) router.push(path);
+  };
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -180,6 +194,8 @@ export default function LoginPage() {
           </div>
         )}
 
+        <QRScanner open={scanOpen} onClose={() => setScanOpen(false)} onScan={handleScan} />
+
         {requires2FA ? (
           <form onSubmit={submit2FA} className="flex flex-col gap-3">
             <div className="flex items-center justify-center gap-2 mb-2">
@@ -288,6 +304,14 @@ export default function LoginPage() {
               <Button type="submit">
                 {mode === "login" ? t("login.submitLogin") : t("login.submitRegister")}
               </Button>
+
+              <button
+                type="button"
+                onClick={() => setScanOpen(true)}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-white/80 text-sm font-medium py-2.5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+              >
+                <QrCode size={16} /> Войти по QR
+              </button>
             </form>
             
             {/* Гармоничный футер с переключателем языка */}

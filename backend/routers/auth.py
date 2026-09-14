@@ -480,8 +480,9 @@ def qr_login_create(
         _QR_LOGIN_CODES.pop(k, None)
     code = secrets.token_urlsafe(24)
     _QR_LOGIN_CODES[code] = {"user_id": user.id, "exp": now + _QR_LOGIN_TTL}
-    base = request.base_url
-    qr_url = f"{base.scheme}://{base.netloc}/login?action=qrauth&code={code}"
+    # Ссылка должна вести на ФРОНТЕНД (а не на API) — иначе скан не откроет логин.
+    front = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    qr_url = f"{front}/login?action=qrauth&code={code}"
     return {"code": code, "qr_url": qr_url, "expires_in": _QR_LOGIN_TTL}
 
 
