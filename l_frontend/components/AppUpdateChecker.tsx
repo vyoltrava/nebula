@@ -5,12 +5,11 @@
 import { useEffect, useState } from 'react';
 import { Download, RefreshCw, X, ArrowUpCircle } from 'lucide-react';
 import {
-  checkApkUpdate, isNativeApp, isPwaStandalone, shouldCheckUpdates,
+  checkApkUpdate, isNativeApp, isDesktopApp, isPwaStandalone, shouldCheckUpdates,
   installUpdate, applyPwaUpdate, ApkUpdateInfo,
 } from '@/lib/appUpdate';
 
 const DISMISS_PREFIX = 'apk_update_dismissed_';
-const CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 часов
 
 export function AppUpdateChecker() {
   const [update, setUpdate] = useState<ApkUpdateInfo | null>(null);
@@ -22,23 +21,53 @@ export function AppUpdateChecker() {
   useEffect(() => {
     if (!shouldCheckUpdates()) return; // обычная вкладка браузера — SW сам обновится
 
-    setIsPwa(!isNativeApp() && isPwaStandalone());
+    setIsPwa(!isNativeApp() && !isDesktopApp() && isPwaStandalone());
+
+    // Нативному/десктоп-приложению проверяемся часто (минуты) — чтобы кнопка
+    // появлялась сразу после деплоя на git. PWA — реже (фронт и так обновляется через SW).
+    const isNativeOrDesktop = isNativeApp() || isDesktopApp();
+    const CHECK_INTERVAL_MS = isNativeOrDesktop ? 5 * 60 * 1000 : 12 * 60 * 60 * 1000;
+
+    // Показать баннер, если версия новее и юзер ещё не скрывал её.
+    const show = (info: ApkUpdateInfo) => {
+      if (!info || !info.available || !info.apkUrl) return;
+      const dismissed = localStorage.getItem(DISMISS_PREFIX + info.latestVersion);
+      if (dismissed) return;
+      setUpdate(info);
+      setHidden(false);
+    };
 
     let timer: ReturnType<typeof setInterval> | null = null;
     const run = async () => {
       const info = await checkApkUpdate();
-      if (info.available && info.apkUrl) {
-        const dismissed = localStorage.getItem(DISMISS_PREFIX + info.latestVersion);
-        if (!dismissed) {
-          setUpdate(info);
-          setHidden(false);
-        }
-      }
+      show(info);
     };
+
     run();
     timer = setInterval(run, CHECK_INTERVAL_MS);
+
+    // Мгновенная проверка, когда окно/вкладка снова видима или получает фокус.
+    const onVisible = () => { if (document.visibilityState === 'visible') run(); };
+    const onFocus = () => run();
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onFocus);
+
+    // Десктоп: главный процесс сам поллит update.json и пушит «update:available» —
+    // баннер появляется в течение минуты после деплоя даже без действий юзера.
+    const unsubscribe = (window as any).trelodDesktop?.onUpdateAvailable?.((i: any) => {
+      show({
+        available: !!i?.available,
+        latestVersion: String(i?.latestVersion || ''),
+        currentVersion: String(i?.currentVersion || ''),
+        apkUrl: i?.installerUrl || null,
+      });
+    });
+
     return () => {
       if (timer) clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onFocus);
+      if (typeof unsubscribe === 'function') unsubscribe();
     };
   }, []);
 
@@ -60,7 +89,7 @@ export function AppUpdateChecker() {
     }
     setStatus('Скачиваю обновление…');
     const res = await installUpdate(update.apkUrl);
-    setStatus(res.ok ? (res.message || 'Готово — подтверди установку в диалоге Android.') : `Ошибка: ${res.error}`);
+    setStatus(res.ok ? (res.message || 'Готово — запускаю установщик.') : `Ошибка: ${res.error}`);
     setBusy(false);
   };
 

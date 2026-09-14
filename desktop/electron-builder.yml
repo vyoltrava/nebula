@@ -1,0 +1,46 @@
+# electron-builder.yml — собирёт Windows-установщик (NSIS), аналог APK для Android.
+#   npm run dist   → release/trelod-Setup-<version>.exe
+#   npm run release <version> → скопирует exe в l_frontend/public/desktop/ + обновит update.json
+appId: app.trelod.desktop
+productName: trelod
+copyright: Copyright © trelod
+
+directories:
+  output: release
+  buildResources: build
+
+# В бандл попадёт только Electron-шелл (main/preload). Сам фронтенд грузится
+# удалённо (как и в Capacitor-версии) по NEBULA_APP_URL / константе в main/index.js.
+files:
+  - main/**/*
+  - package.json
+
+asar: true
+
+# Сжатие — как у APK (differential). plain = быстрее сборка.
+compression: normal
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  # Логотип берётся из l_frontend/public/ — единый источник (git), дублей в desktop/ нет.
+  icon: ../l_frontend/public/pwa/icon-512.png
+  # Не подписываем и не «правим» исполняемый файл через winCodeSign/rcedit —
+  # обходим требование Windows-привилегии на symlink при распаковке winCodeSign.
+  # Иконка/версия установщика при этом всё равно задаются на уровне NSIS/shell.
+  signAndEditExecutable: false
+  # Имя установщика важно для release-скрипта (ищет trelod-Setup-<ver>.exe):
+  artifactName: trelod-Setup-${version}.${ext}
+
+nsis:
+  oneClick: false            # мастер с шагами (папка, ярлыки) — привычный Windows
+  perMachine: false          # установка в профиль пользователя (без прав админа)
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: trelod
+  deleteAppDataOnUninstall: false
+  # Совпадает с win.artifactName — итоговый файл установщика.
+  artifactName: trelod-Setup-${version}.${ext}

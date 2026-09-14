@@ -63,6 +63,31 @@
 
 **Ссылка для установки с нуля:** `https://твой-домен/apk/app-release.apk`.
 
+## Desktop (Windows, установщик .exe)
+
+Полноценное десктоп-приложение (Electron) с установщиком NSIS — аналог APK для Android.
+Название приложения — **trelod**; логотип/иконка берутся из `l_frontend/public/`
+(единый источник в git — `public/pwa/icon-512.png`, дублей в `desktop/` нет):
+
+- **Исходники:** `desktop/` (main + preload + electron-builder).
+- **Установщик:** `desktop/release/trelod-Setup-<ver>.exe` (собирается `npm run dist`).
+- **Обновления:** деплоятся вместе с фронтом в `public/desktop/`:
+  - `public/desktop/trelod-Setup-<ver>.exe`
+  - `public/desktop/update.json` — `{ "version": "1.2", "url": "/desktop/trelod-Setup-1.2.exe" }`
+
+**Выпуск обновления:**
+1. Собери установщик: `cd desktop && npm run dist` (сначала подняв `version` в `desktop/package.json`).
+2. `cd desktop && npm run release -- 1.3` (подставь новую версию) — скопирует exe в `l_frontend/public/desktop/` и обновит `update.json`.
+3. `git add -A && git commit -m "release desktop 1.3" && git push`.
+
+Приложение сравнивает свою версию с `update.json` (тот же механизм, что и у APK).
+В десктоп-версии проверка идёт **каждую минуту** в главном процессе, плюс при запуске
+и фокусе окна — поэтому после деплоя на git кнопка «Обновить сейчас» появляется почти
+сразу: установщик скачивается и ставится тихо (`/S`).
+Фронтенд определяет десктоп через мост `window.trelodDesktop` в `lib/appUpdate.ts` (`isDesktopApp()`).
+
+**Ссылка для установки с нуля:** `https://твой-домен/desktop/trelod-Setup-<version>.exe`.
+
 ### Индикаторы звонка в UI (CallModal)
 
 Во время «Соединение...» под статусом выводится строка диагностики:

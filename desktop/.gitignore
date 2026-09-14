@@ -1,0 +1,13 @@
+# Зависимости
+node_modules/
+
+# Сборка electron-builder
+release/
+dist/
+
+# Логи
+*.log
+
+# Env-переменные (локальные переопределения)
+.env
+.env.local

@@ -1,7 +1,8 @@
-// lib/appUpdate.ts — автообновление APK прямо из приложения.
-// Проверка простая: приложение спрашивает у нативного плагина свою версию
-// и сравнивает её с /apk/update.json (деплоится вместе с фронтом).
-// Выпуск обновления: собрал APK → node scripts/release-apk.mjs <версия> → git push.
+// lib/appUpdate.ts — автообновление нативного приложения: APK (Android, Capacitor)
+// и Desktop (Windows, Electron). Проверка простая: приложение спрашивает у нативного
+// слоя свою версию и сравнивает её с update.json, задеплоенным вместе с фронтом
+// (/apk/update.json для APK, /desktop/update.json для десктоп-установщика).
+// Выпуск обновления: mobile/release…→ release-apk.mjs, desktop → release-desktop.mjs.
 'use client';
 
 export interface ApkUpdateInfo {
@@ -11,14 +12,27 @@ export interface ApkUpdateInfo {
   apkUrl: string | null;
 }
 
-const UPDATE_MANIFEST = '/apk/update.json';
+/** Путь к манифесту обновлений в зависимости от платформы. */
+function updateManifestPath(): string {
+  return isDesktopApp() ? '/desktop/update.json' : '/apk/update.json';
+}
 
-/** Нативное приложение Capacitor? */
+/** Нативное приложение Capacitor (Android APK / iOS)? */
 export function isNativeApp(): boolean {
   if (typeof window === 'undefined') return false;
   try {
     const cap = (window as any).Capacitor;
     return !!cap?.isNativePlatform?.();
+  } catch {
+    return false;
+  }
+}
+
+/** Нативное десктоп-приложение (Electron, мост trelodDesktop)? */
+export function isDesktopApp(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return !!(window as any).trelodDesktop?.isDesktop;
   } catch {
     return false;
   }
@@ -36,9 +50,9 @@ export function isPwaStandalone(): boolean {
   }
 }
 
-/** Стоит показывать автообновление: нативный APK или PWA. */
+/** Стоит показывать автообновление: нативный APK, Desktop или PWA. */
 export function shouldCheckUpdates(): boolean {
-  return isNativeApp() || isPwaStandalone();
+  return isNativeApp() || isDesktopApp() || isPwaStandalone();
 }
 
 /** Сравнение версий вида 1.2.3: -1 / 0 / 1 */
@@ -68,18 +82,23 @@ export async function checkApkUpdate(): Promise<ApkUpdateInfo> {
   //    всегда новее → баннер покажем.
   let currentVersion = '0';
   try {
+    const desk = (window as any).trelodDesktop;
     const cap = (window as any).Capacitor;
-    if (cap?.isNativePlatform?.() && cap.Plugins?.AppUpdate) {
+    if (desk?.isDesktop) {
+      // Desktop (Electron): версия из нативного слоя.
+      currentVersion = (await desk.getVersion()) || '0';
+    } else if (cap?.isNativePlatform?.() && cap.Plugins?.AppUpdate) {
+      // Нативный APK (Capacitor).
       const r = await cap.Plugins.AppUpdate.getVersion();
       currentVersion = r?.version || '0';
     }
   } catch {
-    // плагин недоступен — PWA, оставляем '0'
+    // плагин/мост недоступен — PWA, оставляем '0'
   }
 
   // Свежая версия — из манифеста обновлений, задеплоенного с фронтом
   try {
-    const res = await fetch(UPDATE_MANIFEST, { cache: 'no-store' });
+    const res = await fetch(updateManifestPath(), { cache: 'no-store' });
     if (!res.ok) return { ...empty, currentVersion };
     const meta = await res.json();
     if (!meta?.version || !meta?.url) return { ...empty, currentVersion };
@@ -99,14 +118,22 @@ export async function checkApkUpdate(): Promise<ApkUpdateInfo> {
 
 /**
  * Установка обновления:
- *  - в нативном APK: качает APK и запускает системный установщик (без браузера)
+ *  - в Desktop (Electron): качает установщик и запускает его (тихо)
+ *  - в нативном APK: качает APK и запускает системный установщик Android
  *  - в браузере: открывает ссылку в новой вкладке
  */
 export async function installUpdate(url: string): Promise<{ ok: boolean; message?: string; error?: string }> {
   if (typeof window === 'undefined') return { ok: false, error: 'no window' };
   try {
+    const desk = (window as any).trelodDesktop;
     const cap = (window as any).Capacitor;
+    if (desk?.isDesktop) {
+      // Desktop (Electron): установщик скачивается и запускается в главном процессе.
+      const res = await desk.downloadAndInstall(url);
+      return { ok: !!res?.ok, message: res?.message, error: res?.error };
+    }
     if (cap?.isNativePlatform?.() && cap.Plugins?.AppUpdate) {
+      // Нативный APK: системный установщик Android.
       const res = await cap.Plugins.AppUpdate.downloadAndInstall({ url });
       return { ok: !!res?.ok, message: res?.message };
     }
