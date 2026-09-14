@@ -14,7 +14,7 @@ import {
   ArrowLeft, MessageCircle, UserPlus, UserCheck, MoreVertical,
   Copy, Settings as SettingsIcon, Camera, Image as ImageIcon,
   X as XIcon, Pencil, Check, Sparkles, Users, LogOut, Settings,
-  User as UserIcon, Lock, AlertTriangle,
+  User as UserIcon, Lock, AlertTriangle, QrCode,
 } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
 import { getToken, clearToken, getActiveAccount, setToken } from "@/lib/auth";
@@ -36,6 +36,8 @@ const AvatarCropper = dynamic(() => import("@/components/AvatarCropper").then(m 
 import { validateUpload, uploadErrorText, UPLOAD_RULES } from "@/lib/uploadRules";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { NebulaCircleModal } from "@/components/NebulaCircleModal";
+import QRModal from "@/components/qr/QRModal";
+import { getProfileUrl } from "@/lib/qr";
 
 type UserProfile = {
   id: number;
@@ -79,6 +81,7 @@ export default function NebulaUserPage() {
   const [coverMenu, setCoverMenu] = useState(false);
   const [coverError, setCoverError] = useState<string | null>(null);
   const [showCircle, setShowCircle] = useState(false);
+  const [showProfileQr, setShowProfileQr] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => setReady(true), []);
@@ -441,6 +444,15 @@ export default function NebulaUserPage() {
                       <Pencil size={16} />
                     </button>
                   )}
+                  {isMine && (
+                    <button
+                      onClick={() => setShowProfileQr(true)}
+                      className="text-gray-400 hover:text-purple-500 transition-colors"
+                      title="QR профиля"
+                    >
+                      <QrCode size={16} />
+                    </button>
+                  )}
                 </div>
                 <div className="mt-1 text-sm text-gray-500 dark:text-white/40">@{user.username}</div>
                 {!editing && user.bio && (
@@ -591,6 +603,13 @@ export default function NebulaUserPage() {
             />
           ) : null}
           {showCircle && <NebulaCircleModal onClose={() => setShowCircle(false)} />}
+          <QRModal
+            open={showProfileQr}
+            onClose={() => setShowProfileQr(false)}
+            title="Мой QR профиля"
+            subtitle={`@${user?.username || ''}`}
+            value={user?.username ? getProfileUrl(user.username) : ''}
+          />
         </>
       )}
     </div>

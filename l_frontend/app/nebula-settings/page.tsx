@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Sparkles, Sun, Bell, ShieldCheck, ChevronRight,
   KeyRound, Lock, Zap, Languages, User, LogOut, Eye, EyeOff,
-  AlertCircle, CheckCircle2, Copy, ShieldAlert, X, CreditCard,
+  AlertCircle, CheckCircle2, Copy, ShieldAlert, X, CreditCard, QrCode,
 } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
 import { getToken, clearToken } from "@/lib/auth";
@@ -23,6 +23,7 @@ import { PrivacyTab } from "@/components/settings/PrivacyTab";
 import { DevicePermissionsSection } from "@/components/DevicePermissionsSection";
 import { LiveTextSettings } from "@/components/LiveTextSettings";
 import { PaymentShop } from "@/components/payments/PaymentShop";
+import QRSettingsSection from "@/components/qr/QRSettingsSection";
 
 export default function NebulaSettingsPage() {
   const router = useRouter();
@@ -188,6 +189,7 @@ export default function NebulaSettingsPage() {
     { id: "livetext", icon: Zap, color: "text-yellow-500", title: t("nebula.secLivetext"), hint: t("nebula.hintLivetext") },
     { id: "language", icon: Languages, color: "text-purple-500", title: t("nebula.secLanguage"), hint: t("nebula.hintLanguage") },
     { id: "payments", icon: CreditCard, color: "text-violet-500", title: t("nebula.secPayments"), hint: t("nebula.hintPayments") },
+    { id: "qr", icon: QrCode, color: "text-[#8b5cf6]", title: "QR-коды", hint: "Профиль, вход по QR, сканер" },
   ];
 
   return (
@@ -264,6 +266,7 @@ export default function NebulaSettingsPage() {
                     {s.id === "livetext" && <LiveTextSettings />}
                     {s.id === "language" && <LanguageSwitcher />}
                     {s.id === "payments" && <PaymentShop />}
+                    {s.id === "qr" && <QRSettingsSection user={user} />}
                   </div>
                 )}
               </div>

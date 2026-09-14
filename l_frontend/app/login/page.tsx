@@ -1,7 +1,8 @@
 ﻿"use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { setToken } from "@/lib/auth";
+import { swapLoginQr } from "@/lib/qr";
 import { ShieldCheck, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -24,6 +25,28 @@ export default function LoginPage() {
   const [tempUserId, setTempUserId] = useState<number | null>(null);
   const [twoFACode, setTwoFACode] = useState("");
   const [loading2FA, setLoading2FA] = useState(false);
+  const [qrStatus, setQrStatus] = useState("");
+
+  // QR-вход: переход по ссылке /login?action=qrauth&code=… (после сканирования QR)
+  const qrLogin = async (code: string) => {
+    setQrStatus("Вход по QR…");
+    const r = await swapLoginQr(code);
+    if (!r.ok || !r.token || !r.user) {
+      setQrStatus(r.error || "Не удалось войти по QR");
+      return;
+    }
+    setToken(r.token, r.user, { refreshToken: r.refreshToken });
+    sessionStorage.setItem("justLoggedIn", "1");
+    setQrStatus("");
+    router.push("/");
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (params.get("action") === "qrauth" && code) qrLogin(code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -150,6 +173,12 @@ export default function LoginPage() {
         <h1 className="font-logo text-5xl text-center mb-6 text-[#8b5cf6]">
           trelod
         </h1>
+
+        {qrStatus && (
+          <div className="mb-4 p-3 rounded-xl bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 text-[#8b5cf6] text-sm font-semibold text-center">
+            {qrStatus}
+          </div>
+        )}
 
         {requires2FA ? (
           <form onSubmit={submit2FA} className="flex flex-col gap-3">

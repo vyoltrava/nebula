@@ -455,3 +455,68 @@ def login_2fa(
     _refresh = set_refresh_cookie(response, user.id, _tv)
     return {"token": create_token(user.id, _tv), "refresh_token": _refresh, "user": user_out(user, session)}
 
+
+
+# ==== QR: быстрый вход с другого устройства ====
+# Короткоживущие одноразовые коды хранятся в памяти процесса (single-worker).
+# Скан → юзер попадает на /login?action=qrauth&code=... → swap выдаёт сессию.
+_QR_LOGIN_CODES: dict = {}
+_QR_LOGIN_TTL = 120  # секунд жизни кода
+
+
+class QRLoginSwapIn(BaseModel):
+    code: str
+
+
+@router.post("/api/qr-login/create")
+@limiter.limit("20/minute")
+def qr_login_create(
+    request: Request,
+    user: User = Depends(get_current_user),
+):
+    """Создаёт короткоживущий одноразовый код входа по QR для текущего юзера."""
+    now = time.time()
+    for k in [k for k, v in _QR_LOGIN_CODES.items() if v["exp"] < now]:
+        _QR_LOGIN_CODES.pop(k, None)
+    code = secrets.token_urlsafe(24)
+    _QR_LOGIN_CODES[code] = {"user_id": user.id, "exp": now + _QR_LOGIN_TTL}
+    base = request.base_url
+    qr_url = f"{base.scheme}://{base.netloc}/login?action=qrauth&code={code}"
+    return {"code": code, "qr_url": qr_url, "expires_in": _QR_LOGIN_TTL}
+
+
+@router.post("/api/qr-login/swap")
+@limiter.limit("20/minute")
+def qr_login_swap(
+    request: Request,
+    response: Response,
+    data: QRLoginSwapIn = Body(...),
+    session: Session = Depends(get_session),
+):
+    """Обменивает код из QR на полноценную сессию (access/refresh + user)."""
+    code = (data.code or "").strip()
+    entry = _QR_LOGIN_CODES.pop(code, None)
+    if not entry:
+        raise HTTPException(400, "Код недействителен или уже использован")
+    if entry["exp"] < time.time():
+        raise HTTPException(400, "Код истёк — сгенерируйте новый")
+    user = session.get(User, entry["user_id"])
+    if not user:
+        raise HTTPException(401, "Пользователь не найден")
+    if getattr(user, "is_banned", False):
+        _maybe_autounban(user, session)
+        if user.is_banned:
+            raise HTTPException(403, "Пользователь заблокирован")
+    ensure_user_has_keys(user.id, session)
+    ip = get_client_ip(request)
+    ua = request.headers.get("user-agent")
+    try:
+        session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=ua, action="login_qr"))
+        log_action(session, user.id, "login_qr", ip_address=ip)
+    except Exception:
+        pass
+    session.commit()
+    _tv = getattr(user, "token_version", 0) or 0
+    _refresh = set_refresh_cookie(response, user.id, _tv)
+    return {"token": create_token(user.id, _tv), "refresh_token": _refresh, "user": user_out(user, session)}
+

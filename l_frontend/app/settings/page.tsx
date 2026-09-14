@@ -26,6 +26,7 @@ import {
   Sparkles,
   CreditCard,
   ShoppingBag,
+  QrCode,
 } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
 import { PushSettings } from "@/components/PushSettings";
@@ -39,8 +40,9 @@ import { PaymentShop } from "@/components/payments/PaymentShop";
 import { ShopSettings } from "@/components/settings/ShopSettings";
 import { PrivacyTab } from "@/components/settings/PrivacyTab";
 import { Button, IconButton } from "@/components/ui/Button";
+import QRSettingsSection from "@/components/qr/QRSettingsSection";
 
-type View = "profile" | "appearance" | "notifications" | "permissions" | "messages" | "privacy" | "security" | "nebula" | "shop";
+type View = "profile" | "appearance" | "notifications" | "permissions" | "messages" | "privacy" | "security" | "nebula" | "shop" | "qr";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -335,6 +337,7 @@ async function activate2FA() {
     { id: "privacy", label: t("privacy.title"), icon: Lock },
     { id: "messages", label: t("settings.liveMessages"), icon: Zap },
     { id: "security", label: t("settings.security"), icon: ShieldCheck },
+    { id: "qr", label: "QR-коды", icon: QrCode },
     { id: "nebula", label: "Nebula", icon: Sparkles },
   ];
 
@@ -425,6 +428,13 @@ async function activate2FA() {
 
           {/* ===== Контент ===== */}
           <section className="bg-gray-100 dark:bg-[#1E1E23] border border-line dark:border-white/10 rounded-xl p-5 sm:p-6">
+            {/* ---------- QR-коды ---------- */}
+            {view === "qr" && (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold">QR-коды</h2>
+                <QRSettingsSection user={user} />
+              </div>
+            )}
             {/* ---------- ПРОФИЛЬ ---------- */}
             {view === "profile" && (
               <div className="space-y-6">
