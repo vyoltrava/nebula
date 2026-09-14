@@ -609,6 +609,7 @@ export default function NebulaUserPage() {
             title="Мой QR профиля"
             subtitle={`@${user?.username || ''}`}
             value={user?.username ? getProfileUrl(user.username) : ''}
+            avatarUrl={user?.avatar_url ? mediaUrl(user.avatar_url) : null}
           />
         </>
       )}

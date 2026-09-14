@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { setToken } from "@/lib/auth";
-import { swapLoginQr } from "@/lib/qr";
-import QRScanner from "@/components/qr/QRScanner";
+import { requestLoginQr, pollLoginQr, confirmLoginQr } from "@/lib/qr";
+import PrettyQR from "@/components/qr/PrettyQR";
 import { ShieldCheck, X, QrCode } from "lucide-react";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -27,40 +27,67 @@ export default function LoginPage() {
   const [twoFACode, setTwoFACode] = useState("");
   const [loading2FA, setLoading2FA] = useState(false);
   const [qrStatus, setQrStatus] = useState("");
-  const [scanOpen, setScanOpen] = useState(false);
+  const [qrLoginOpen, setQrLoginOpen] = useState(false);
+  const [qrData, setQrData] = useState<{ code: string; qrUrl: string; expiresIn: number } | null>(null);
 
-  // QR-вход: переход по ссылке /login?action=qrauth&code=… (после сканирования QR)
-  const qrLogin = async (code: string) => {
-    setQrStatus("Вход по QR…");
-    const r = await swapLoginQr(code);
-    if (!r.ok || !r.token || !r.user) {
-      setQrStatus(r.error || "Не удалось войти по QR");
-      return;
-    }
-    setToken(r.token, r.user, { refreshToken: r.refreshToken });
-    sessionStorage.setItem("justLoggedIn", "1");
-    setQrStatus("");
-    router.push("/");
+  // Подтвердить вход по QR (когда УЖЕ залогиненное устройство открыло confirm-ссылку,
+  // например отсканировало QR штатной камерой телефона)
+  const confirmQr = async (code: string) => {
+    setQrStatus("Подтверждаю вход…");
+    const r = await confirmLoginQr(code);
+    setQrStatus(
+      r.ok
+        ? `✓ Вход подтверждён: @${r.user?.username || ""} — проверьте другое устройство`
+        : (r.error || "Не удалось подтвердить вход")
+    );
   };
 
+  // Логин-окно: показываем QR и опрашиваем статус, пока аккаунт не подтвердит вход
+  useEffect(() => {
+    if (!qrLoginOpen) return;
+    let stopped = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    (async () => {
+      setQrStatus("Создаю QR…");
+      const r = await requestLoginQr();
+      if (stopped) return;
+      if (r.error || !r.code) {
+        setQrStatus(r.error || "Не удалось создать QR");
+        return;
+      }
+      setQrData({ code: r.code, qrUrl: r.qrUrl, expiresIn: r.expiresIn });
+      setQrStatus("");
+
+      pollTimer = setInterval(async () => {
+        const p = await pollLoginQr(r.code);
+        if (stopped) return;
+        if (p.status === "approved" && p.token && p.user) {
+          if (pollTimer) clearInterval(pollTimer);
+          setToken(p.token, p.user, { refreshToken: p.refreshToken });
+          sessionStorage.setItem("justLoggedIn", "1");
+          setQrLoginOpen(false);
+          router.push("/");
+        } else if (p.status === "expired") {
+          if (pollTimer) clearInterval(pollTimer);
+          setQrStatus("QR истёк — нажмите «Войти по QR» ещё раз");
+        }
+      }, 2500);
+    })();
+
+    return () => {
+      stopped = true;
+      if (pollTimer) clearInterval(pollTimer);
+    };
+  }, [qrLoginOpen]);
+
+  // Deep-link: /login?action=qrconfirm&code=… (ссылка открылась на залогиненном устройстве)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
-    if (params.get("action") === "qrauth" && code) qrLogin(code);
+    if (params.get("action") === "qrconfirm" && code) confirmQr(code);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Сканер в окне логина: QR входа → авто-вход, ссылка на профиль → переход
-  const handleScan = (text: string) => {
-    if (!text) return;
-    const m = text.match(/\/login\?action=qrauth&code=([A-Za-z0-9_\-]+)/);
-    if (m) {
-      qrLogin(m[1]);
-      return;
-    }
-    const path = text.replace(/^https?:\/\/[^/]+/, "");
-    if (path) router.push(path);
-  };
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -188,13 +215,11 @@ export default function LoginPage() {
           trelod
         </h1>
 
-        {qrStatus && (
+        {qrStatus && !qrLoginOpen && (
           <div className="mb-4 p-3 rounded-xl bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 text-[#8b5cf6] text-sm font-semibold text-center">
             {qrStatus}
           </div>
         )}
-
-        <QRScanner open={scanOpen} onClose={() => setScanOpen(false)} onScan={handleScan} />
 
         {requires2FA ? (
           <form onSubmit={submit2FA} className="flex flex-col gap-3">
@@ -307,11 +332,32 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                onClick={() => setScanOpen(true)}
+                onClick={() => setQrLoginOpen((v) => !v)}
                 className="w-full flex items-center justify-center gap-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-white/80 text-sm font-medium py-2.5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
               >
                 <QrCode size={16} /> Войти по QR
               </button>
+
+              {qrLoginOpen && (
+                <div className="rounded-xl border border-line dark:border-white/15 bg-white dark:bg-[#1E1E23] p-4 text-center">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Вход по QR</p>
+                  <p className="text-xs text-[#B9B8BD] mb-3">
+                    Отсканируйте этот код со своего аккаунта: Настройки → QR-коды → «Сканировать QR входа»
+                  </p>
+                  <div className="flex justify-center">
+                    {qrData ? (
+                      <PrettyQR value={qrData.qrUrl} size={190} />
+                    ) : (
+                      <div className="w-[190px] h-[190px] rounded-xl bg-gray-100 dark:bg-white/5 animate-pulse" />
+                    )}
+                  </div>
+                  {qrStatus ? (
+                    <p className="text-xs mt-3 text-[#8b5cf6] font-medium">{qrStatus}</p>
+                  ) : (
+                    <p className="text-xs mt-3 text-[#B9B8BD]">Ожидаем подтверждение с вашего аккаунта…</p>
+                  )}
+                </div>
+              )}
             </form>
             
             {/* Гармоничный футер с переключателем языка */}

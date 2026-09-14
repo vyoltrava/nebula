@@ -457,57 +457,24 @@ def login_2fa(
 
 
 
-# ==== QR: быстрый вход с другого устройства ====
-# Короткоживущие одноразовые коды хранятся в памяти процесса (single-worker).
-# Скан → юзер попадает на /login?action=qrauth&code=... → swap выдаёт сессию.
+# ==== QR-вход: логин-окно показывает QR, аккаунт подтверждает сканером ====
+# Коды хранятся в памяти процесса (single-worker).
 _QR_LOGIN_CODES: dict = {}
-_QR_LOGIN_TTL = 120  # секунд жизни кода
+_QR_LOGIN_TTL = 180  # секунд жизни QR
 
 
-class QRLoginSwapIn(BaseModel):
+class QRLoginCodeIn(BaseModel):
     code: str
 
 
-@router.post("/api/qr-login/create")
-@limiter.limit("20/minute")
-def qr_login_create(
-    request: Request,
-    user: User = Depends(get_current_user),
-):
-    """Создаёт короткоживущий одноразовый код входа по QR для текущего юзера."""
+def _qr_cleanup() -> None:
     now = time.time()
     for k in [k for k, v in _QR_LOGIN_CODES.items() if v["exp"] < now]:
         _QR_LOGIN_CODES.pop(k, None)
-    code = secrets.token_urlsafe(24)
-    _QR_LOGIN_CODES[code] = {"user_id": user.id, "exp": now + _QR_LOGIN_TTL}
-    # Ссылка должна вести на ФРОНТЕНД (а не на API) — иначе скан не откроет логин.
-    front = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
-    qr_url = f"{front}/login?action=qrauth&code={code}"
-    return {"code": code, "qr_url": qr_url, "expires_in": _QR_LOGIN_TTL}
 
 
-@router.post("/api/qr-login/swap")
-@limiter.limit("20/minute")
-def qr_login_swap(
-    request: Request,
-    response: Response,
-    data: QRLoginSwapIn = Body(...),
-    session: Session = Depends(get_session),
-):
-    """Обменивает код из QR на полноценную сессию (access/refresh + user)."""
-    code = (data.code or "").strip()
-    entry = _QR_LOGIN_CODES.pop(code, None)
-    if not entry:
-        raise HTTPException(400, "Код недействителен или уже использован")
-    if entry["exp"] < time.time():
-        raise HTTPException(400, "Код истёк — сгенерируйте новый")
-    user = session.get(User, entry["user_id"])
-    if not user:
-        raise HTTPException(401, "Пользователь не найден")
-    if getattr(user, "is_banned", False):
-        _maybe_autounban(user, session)
-        if user.is_banned:
-            raise HTTPException(403, "Пользователь заблокирован")
+def _qr_issue_session(request: Request, response: Response, session: Session, user):
+    """Выдаёт полноценную сессию (как /api/login) — используется в poll."""
     ensure_user_has_keys(user.id, session)
     ip = get_client_ip(request)
     ua = request.headers.get("user-agent")
@@ -520,4 +487,70 @@ def qr_login_swap(
     _tv = getattr(user, "token_version", 0) or 0
     _refresh = set_refresh_cookie(response, user.id, _tv)
     return {"token": create_token(user.id, _tv), "refresh_token": _refresh, "user": user_out(user, session)}
+
+
+@router.post("/api/qr-login/request")
+@limiter.limit("10/minute")
+def qr_login_request(request: Request):
+    """Логин-окно создаёт код: показывает QR и ждёт подтверждения с аккаунта."""
+    _qr_cleanup()
+    code = secrets.token_urlsafe(24)
+    _QR_LOGIN_CODES[code] = {"status": "pending", "user_id": None, "exp": time.time() + _QR_LOGIN_TTL}
+    # QR должен вести на ФРОНТЕНД (не на API) — иначе скан не откроет подтверждение.
+    front = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    qr_url = f"{front}/login?action=qrconfirm&code={code}"
+    return {"code": code, "qr_url": qr_url, "expires_in": _QR_LOGIN_TTL}
+
+
+@router.post("/api/qr-login/poll")
+@limiter.limit("60/minute")
+def qr_login_poll(
+    request: Request,
+    response: Response,
+    data: QRLoginCodeIn,
+    session: Session = Depends(get_session),
+):
+    """Логин-окно опрашивает статус. approved → выдаём сессию и гасим код."""
+    code = (data.code or "").strip()
+    entry = _QR_LOGIN_CODES.get(code)
+    if not entry:
+        return {"status": "expired"}
+    if entry["exp"] < time.time():
+        _QR_LOGIN_CODES.pop(code, None)
+        return {"status": "expired"}
+    if entry["status"] != "approved" or not entry.get("user_id"):
+        return {"status": "pending"}
+    user = session.get(User, entry["user_id"])
+    if not user:
+        _QR_LOGIN_CODES.pop(code, None)
+        return {"status": "expired"}
+    if getattr(user, "is_banned", False) and not _maybe_autounban(user, session):
+        _QR_LOGIN_CODES.pop(code, None)
+        return {"status": "expired"}
+    _QR_LOGIN_CODES.pop(code, None)
+    return {"status": "approved", **_qr_issue_session(request, response, session, user)}
+
+
+@router.post("/api/qr-login/confirm")
+@limiter.limit("20/minute")
+def qr_login_confirm(
+    request: Request,
+    data: QRLoginCodeIn,
+    user: User = Depends(get_current_user),
+):
+    """Аккаунт (уже залогинен) сканирует QR и подтверждает вход на другом устройстве."""
+    code = (data.code or "").strip()
+    entry = _QR_LOGIN_CODES.get(code)
+    if not entry:
+        raise HTTPException(400, "Код недействителен или истёк")
+    if entry["exp"] < time.time():
+        _QR_LOGIN_CODES.pop(code, None)
+        raise HTTPException(400, "QR истёк — обновите его на устройстве входа")
+    if entry["status"] == "approved":
+        if entry.get("user_id") == user.id:
+            return {"ok": True, "user": {"id": user.id, "username": user.username, "display_name": user.display_name}}
+        raise HTTPException(400, "Этот QR уже подтверждён другим аккаунтом")
+    entry["status"] = "approved"
+    entry["user_id"] = user.id
+    return {"ok": True, "user": {"id": user.id, "username": user.username, "display_name": user.display_name}}
 

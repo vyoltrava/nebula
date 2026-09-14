@@ -9,12 +9,14 @@ interface Props {
   title: string;
   subtitle?: string;
   value: string;
+  /** Аватарка пользователя — рисуется в центре QR скруглённым квадратом. */
+  avatarUrl?: string | null;
   footer?: React.ReactNode;
   qrSize?: number;
 }
 
 /** Модалка для показа «красивого» QR с кнопкой «Копировать». */
-export default function QRModal({ open, onClose, title, subtitle, value, footer, qrSize = 210 }: Props) {
+export default function QRModal({ open, onClose, title, subtitle, value, avatarUrl, footer, qrSize = 210 }: Props) {
   const [copied, setCopied] = useState(false);
   if (!open) return null;
   const copy = async () => {
@@ -36,7 +38,7 @@ export default function QRModal({ open, onClose, title, subtitle, value, footer,
         </div>
         {subtitle && <p className="text-sm text-[#B9B8BD] mb-4 break-words">{subtitle}</p>}
         <div className="flex justify-center mb-4">
-          <PrettyQR value={value} size={qrSize} />
+          <PrettyQR value={value} size={qrSize} avatarUrl={avatarUrl} />
         </div>
         <div className="flex gap-2">
           <button

@@ -27,10 +27,8 @@ win:
         - x64
   # Логотип берётся из l_frontend/public/ — единый источник (git), дублей в desktop/ нет.
   icon: ../l_frontend/public/pwa/icon-512.png
-  # Не подписываем и не «правим» исполняемый файл через winCodeSign/rcedit —
-  # обходим требование Windows-привилегии на symlink при распаковке winCodeSign.
-  # Иконка/версия установщика при этом всё равно задаются на уровне NSIS/shell.
-  signAndEditExecutable: false
+  # Иконка встраивается в .exe (rcedit из winCodeSign). Кэш winCodeSign распакован
+  # вручную без darwin-папки (symlink на Windows требует прав) — см. README.
   # Имя установщика важно для release-скрипта (ищет trelod-Setup-<ver>.exe):
   artifactName: trelod-Setup-${version}.${ext}
 

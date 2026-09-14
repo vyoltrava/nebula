@@ -35,7 +35,25 @@ npm run dist                   # → release/trelod-Setup-<version>.exe (NSIS-м
 Требования: Node 18+; сборка Windows-установщика — на Windows (или Wine на Linux).
 **Логотип/иконка берутся из `l_frontend/public/` — единый источник в git, дублей нет:**
 `public/pwa/icon-512.png` задаётся как `win.icon` (electron-builder) и как иконка окна
-(dev-режим). В упакованном приложении окно использует иконку `.exe`.
+(dev-режим). Иконка **встраивается в `.exe`** (rcedit) — в системе, на панели задач
+и в установщике используется именно логотип из public.
+
+### Если сборка падает на `winCodeSign` («Cannot create symbolic link»)
+На Windows без прав админа 7-Zip не может создать symlink'и из `darwin/` внутри
+архива winCodeSign. Обход — распаковать кэш вручную, исключив darwin-папку
+(для сборки под Windows она не нужна):
+
+```powershell
+$c = "$env:LOCALAPPDATA\electron-builder\Cache"
+Remove-Item "$c\winCodeSign\*" -Recurse -Force -ErrorAction SilentlyContinue
+Invoke-WebRequest `
+  -Uri "https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z" `
+  -OutFile "$env:TEMP\winCodeSign-2.6.0.7z"
+& .\node_modules\7zip-bin\win\x64\7za.exe x "$env:TEMP\winCodeSign-2.6.0.7z" `
+  -o"$c\winCodeSign\winCodeSign-2.6.0" -xr!darwin -y
+```
+
+После этого `npm run dist` подхватит кэш и встроит иконку (rcedit-x64.exe).
 
 ## Выпуск обновления (как у APK)
 
