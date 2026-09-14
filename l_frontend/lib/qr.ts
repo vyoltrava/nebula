@@ -3,6 +3,8 @@
 // АККАУНТ (уже залогинен) сканирует QR сканером и подтверждает (confirm).
 'use client';
 
+import type { MessageKey } from "@/lib/i18n";
+
 export function getProfileUrl(username?: string): string {
   if (typeof window === 'undefined') return '';
   const base = window.location.origin;
@@ -13,7 +15,10 @@ export interface QRLoginRequest {
   code: string;
   qrUrl: string;
   expiresIn: number;
+  /** Текст ошибки с сервера (если был). */
   error?: string;
+  /** Ключ локализации ошибки — UI показывает t(errorKey). */
+  errorKey?: MessageKey;
 }
 
 /** Логин-окно: создать QR входа (публичный эндпоинт, без авторизации). */
@@ -24,12 +29,12 @@ export async function requestLoginQr(): Promise<QRLoginRequest> {
     });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
-      return { code: '', qrUrl: '', expiresIn: 0, error: d.detail || 'Не удалось создать QR входа' };
+      return { code: '', qrUrl: '', expiresIn: 0, error: d.detail, errorKey: 'qr.createFailed' };
     }
     const data = await res.json();
     return { code: data.code, qrUrl: data.qr_url, expiresIn: data.expires_in };
   } catch (e: any) {
-    return { code: '', qrUrl: '', expiresIn: 0, error: e?.message || 'Сетевая ошибка' };
+    return { code: '', qrUrl: '', expiresIn: 0, error: e?.message, errorKey: 'qr.networkError' };
   }
 }
 
@@ -39,6 +44,7 @@ export interface QRLoginPoll {
   refreshToken?: string;
   user?: any;
   error?: string;
+  errorKey?: MessageKey;
 }
 
 /** Логин-окно: опрос статуса QR. approved → сессия выдана. */
@@ -51,7 +57,7 @@ export async function pollLoginQr(code: string): Promise<QRLoginPoll> {
     });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
-      return { status: 'expired', error: d.detail || 'Ошибка проверки QR' };
+      return { status: 'expired', error: d.detail, errorKey: 'qr.pollError' };
     }
     const data = await res.json();
     return {
@@ -62,7 +68,7 @@ export async function pollLoginQr(code: string): Promise<QRLoginPoll> {
     };
   } catch (e: any) {
     // сетевой сбой — считаем «ещё ждём», не роняем поток
-    return { status: 'pending', error: e?.message || 'Сетевая ошибка' };
+    return { status: 'pending', error: e?.message, errorKey: 'qr.networkError' };
   }
 }
 
@@ -70,6 +76,7 @@ export interface QRConfirmResult {
   ok: boolean;
   user?: { id: number; username: string; display_name: string };
   error?: string;
+  errorKey?: MessageKey;
 }
 
 /** Аккаунт: подтвердить вход по отсканированному QR (нужна авторизация). */
@@ -83,12 +90,12 @@ export async function confirmLoginQr(code: string): Promise<QRConfirmResult> {
     });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
-      return { ok: false, error: d.detail || 'Не удалось подтвердить вход' };
+      return { ok: false, error: d.detail, errorKey: 'qr.confirmFailed' };
     }
     const data = await res.json();
     return { ok: true, user: data.user };
   } catch (e: any) {
-    return { ok: false, error: e?.message || 'Сетевая ошибка' };
+    return { ok: false, error: e?.message, errorKey: 'qr.networkError' };
   }
 }
 

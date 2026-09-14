@@ -448,7 +448,7 @@ export default function NebulaUserPage() {
                     <button
                       onClick={() => setShowProfileQr(true)}
                       className="text-gray-400 hover:text-purple-500 transition-colors"
-                      title="QR профиля"
+                      title={t("qr.myQrTitle")}
                     >
                       <QrCode size={16} />
                     </button>
@@ -606,7 +606,7 @@ export default function NebulaUserPage() {
           <QRModal
             open={showProfileQr}
             onClose={() => setShowProfileQr(false)}
-            title="Мой QR профиля"
+            title={t("qr.myQrTitle")}
             subtitle={`@${user?.username || ''}`}
             value={user?.username ? getProfileUrl(user.username) : ''}
             avatarUrl={user?.avatar_url ? mediaUrl(user.avatar_url) : null}

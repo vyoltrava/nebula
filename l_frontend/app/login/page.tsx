@@ -33,12 +33,12 @@ export default function LoginPage() {
   // Подтвердить вход по QR (когда УЖЕ залогиненное устройство открыло confirm-ссылку,
   // например отсканировало QR штатной камерой телефона)
   const confirmQr = async (code: string) => {
-    setQrStatus("Подтверждаю вход…");
+    setQrStatus(t("qr.confirming"));
     const r = await confirmLoginQr(code);
     setQrStatus(
       r.ok
-        ? `✓ Вход подтверждён: @${r.user?.username || ""} — проверьте другое устройство`
-        : (r.error || "Не удалось подтвердить вход")
+        ? t("qr.confirmedOtherDevice", { username: r.user?.username || "" })
+        : (r.errorKey ? t(r.errorKey) : (r.error || t("qr.confirmFailed")))
     );
   };
 
@@ -49,11 +49,11 @@ export default function LoginPage() {
     let pollTimer: ReturnType<typeof setInterval> | null = null;
 
     (async () => {
-      setQrStatus("Создаю QR…");
+      setQrStatus(t("qr.creating"));
       const r = await requestLoginQr();
       if (stopped) return;
       if (r.error || !r.code) {
-        setQrStatus(r.error || "Не удалось создать QR");
+        setQrStatus(r.errorKey ? t(r.errorKey) : (r.error || t("qr.createFailed")));
         return;
       }
       setQrData({ code: r.code, qrUrl: r.qrUrl, expiresIn: r.expiresIn });
@@ -70,7 +70,7 @@ export default function LoginPage() {
           router.push("/");
         } else if (p.status === "expired") {
           if (pollTimer) clearInterval(pollTimer);
-          setQrStatus("QR истёк — нажмите «Войти по QR» ещё раз");
+          setQrStatus(t("qr.expired"));
         }
       }, 2500);
     })();
@@ -335,14 +335,14 @@ export default function LoginPage() {
                 onClick={() => setQrLoginOpen((v) => !v)}
                 className="w-full flex items-center justify-center gap-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-white/80 text-sm font-medium py-2.5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
               >
-                <QrCode size={16} /> Войти по QR
+                <QrCode size={16} /> {t("qr.loginBtn")}
               </button>
 
               {qrLoginOpen && (
                 <div className="rounded-xl border border-line dark:border-white/15 bg-white dark:bg-[#1E1E23] p-4 text-center">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Вход по QR</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{t("qr.loginPanelTitle")}</p>
                   <p className="text-xs text-[#B9B8BD] mb-3">
-                    Отсканируйте этот код со своего аккаунта: Настройки → QR-коды → «Сканировать QR входа»
+                    {t("qr.loginPanelHint")}
                   </p>
                   <div className="flex justify-center">
                     {qrData ? (
@@ -354,7 +354,7 @@ export default function LoginPage() {
                   {qrStatus ? (
                     <p className="text-xs mt-3 text-[#8b5cf6] font-medium">{qrStatus}</p>
                   ) : (
-                    <p className="text-xs mt-3 text-[#B9B8BD]">Ожидаем подтверждение с вашего аккаунта…</p>
+                    <p className="text-xs mt-3 text-[#B9B8BD]">{t("qr.waiting")}</p>
                   )}
                 </div>
               )}

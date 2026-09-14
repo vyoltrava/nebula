@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { X, Copy, Check } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/LanguageProvider';
 import PrettyQR from './PrettyQR';
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
 
 /** Модалка для показа «красивого» QR с кнопкой «Копировать». */
 export default function QRModal({ open, onClose, title, subtitle, value, avatarUrl, footer, qrSize = 210 }: Props) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   if (!open) return null;
   const copy = async () => {
@@ -32,7 +34,7 @@ export default function QRModal({ open, onClose, title, subtitle, value, avatarU
       <div className="relative bg-white dark:bg-[#1E1E23] rounded-2xl p-6 max-w-sm w-full text-center max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h3>
-          <button onClick={onClose} className="text-[#B9B8BD] hover:text-gray-900 dark:hover:text-white p-1" aria-label="Закрыть">
+          <button onClick={onClose} className="text-[#B9B8BD] hover:text-gray-900 dark:hover:text-white p-1" aria-label={t('qr.close')}>
             <X size={20} />
           </button>
         </div>
@@ -46,7 +48,7 @@ export default function QRModal({ open, onClose, title, subtitle, value, avatarU
             className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-white/80 text-sm font-medium py-2.5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
           >
             {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
-            {copied ? 'Скопировано' : 'Копировать'}
+            {copied ? t('qr.copied') : t('qr.copy')}
           </button>
           {footer}
         </div>

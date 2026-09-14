@@ -189,7 +189,7 @@ export default function NebulaSettingsPage() {
     { id: "livetext", icon: Zap, color: "text-yellow-500", title: t("nebula.secLivetext"), hint: t("nebula.hintLivetext") },
     { id: "language", icon: Languages, color: "text-purple-500", title: t("nebula.secLanguage"), hint: t("nebula.hintLanguage") },
     { id: "payments", icon: CreditCard, color: "text-violet-500", title: t("nebula.secPayments"), hint: t("nebula.hintPayments") },
-    { id: "qr", icon: QrCode, color: "text-[#8b5cf6]", title: "QR-коды", hint: "Профиль, вход по QR, сканер" },
+    { id: "qr", icon: QrCode, color: "text-[#8b5cf6]", title: t("qr.sectionTitle"), hint: t("qr.sectionHint") },
   ];
 
   return (

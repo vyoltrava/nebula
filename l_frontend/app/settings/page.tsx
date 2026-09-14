@@ -337,7 +337,7 @@ async function activate2FA() {
     { id: "privacy", label: t("privacy.title"), icon: Lock },
     { id: "messages", label: t("settings.liveMessages"), icon: Zap },
     { id: "security", label: t("settings.security"), icon: ShieldCheck },
-    { id: "qr", label: "QR-коды", icon: QrCode },
+    { id: "qr", label: t("qr.sectionTitle"), icon: QrCode },
     { id: "nebula", label: "Nebula", icon: Sparkles },
   ];
 
@@ -431,7 +431,7 @@ async function activate2FA() {
             {/* ---------- QR-коды ---------- */}
             {view === "qr" && (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold">QR-коды</h2>
+                <h2 className="text-lg font-semibold">{t("qr.sectionTitle")}</h2>
                 <QRSettingsSection user={user} />
               </div>
             )}

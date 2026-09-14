@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { X } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/LanguageProvider';
+import type { MessageKey } from '@/lib/i18n';
 
 const SCAN_ELEMENT_ID = 'nebula-qr-scanner-region';
 
@@ -13,13 +15,14 @@ interface Props {
 
 /** Сканер QR через камеру устройства (html5-qrcode). */
 export default function QRScanner({ open, onClose, onScan }: Props) {
+  const { t } = useI18n();
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const [error, setError] = useState('');
+  const [err, setErr] = useState<{ msg?: string; key?: MessageKey } | null>(null);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setError('');
+    setErr(null);
     (async () => {
       try {
         const scanner = new Html5Qrcode(SCAN_ELEMENT_ID, false);
@@ -37,7 +40,7 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
           () => {}
         );
       } catch (e: any) {
-        if (!cancelled) setError(e?.message || 'Не удалось открыть камеру');
+        if (!cancelled) setErr({ msg: e?.message, key: 'qr.cameraError' });
       }
     })();
     return () => {
@@ -57,16 +60,16 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
       <div className="absolute inset-0 bg-black/80" onClick={onClose} />
       <div className="relative bg-[#1E1E23] rounded-2xl p-5 max-w-sm w-full text-center border border-white/10">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-white">Сканировать QR</h3>
-          <button onClick={onClose} className="text-[#B9B8BD] hover:text-white p-1" aria-label="Закрыть">
+          <h3 className="text-lg font-bold text-white">{t('qr.scannerModalTitle')}</h3>
+          <button onClick={onClose} className="text-[#B9B8BD] hover:text-white p-1" aria-label={t('qr.close')}>
             <X size={20} />
           </button>
         </div>
         <div className="overflow-hidden rounded-xl bg-black">
           <div id={SCAN_ELEMENT_ID} className="w-full [&_video]:!w-full [&_video]:!rounded-xl" />
         </div>
-        {error && <p className="text-sm text-red-500 mt-3">{error}</p>}
-        <p className="text-xs text-[#B9B8BD] mt-3">Наведите камеру на QR — профиль или вход</p>
+        {err && <p className="text-sm text-red-500 mt-3">{err.key ? t(err.key) : err.msg}</p>}
+        <p className="text-xs text-[#B9B8BD] mt-3">{t('qr.scannerModalHint')}</p>
       </div>
     </div>
   );

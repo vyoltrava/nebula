@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { QrCode, ScanLine, User, LogIn, CheckCircle2 } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/LanguageProvider';
 import QRModal from './QRModal';
 import QRScanner from './QRScanner';
 import { mediaUrl } from '@/lib/media';
@@ -17,6 +18,7 @@ interface Props {
  * Схема входа: логин-окно показывает QR, а отсюда сканером его подтверждаешь.
  */
 export default function QRSettingsSection({ user }: Props) {
+  const { t } = useI18n();
   const router = useRouter();
   const [showProfile, setShowProfile] = useState(false);
   const [profileUrl, setProfileUrl] = useState('');
@@ -33,19 +35,19 @@ export default function QRSettingsSection({ user }: Props) {
     const res = resolveScanned(text);
     if (!res) {
       setScanStatus('');
-      setScanError('Не удалось распознать QR');
+      setScanError(t('qr.unrecognized'));
       return;
     }
     if (res.kind === 'qrconfirm') {
       // С аккаунта подтверждаем вход на другом устройстве
       setScanError('');
-      setScanStatus('Подтверждаю вход…');
+      setScanStatus(t('qr.confirming'));
       const r = await confirmLoginQr(res.code);
       if (r.ok) {
-        setScanStatus(`✓ Вход подтверждён: @${r.user?.username || ''}`);
+        setScanStatus(t('qr.confirmed', { username: r.user?.username || '' }));
       } else {
         setScanStatus('');
-        setScanError(r.error || 'Не удалось подтвердить вход');
+        setScanError(r.errorKey ? t(r.errorKey) : (r.error || t('qr.confirmFailed')));
       }
       return;
     }
@@ -59,10 +61,7 @@ export default function QRSettingsSection({ user }: Props) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[#B9B8BD]">
-        QR-коды для быстрого перехода на профиль и входа с другого устройства: на экране входа
-        откройте «Войти по QR» и отсканируйте код этим сканером.
-      </p>
+      <p className="text-sm text-[#B9B8BD]">{t('qr.sectionIntro')}</p>
 
       {/* QR профиля */}
       <div className={cardCls}>
@@ -71,12 +70,12 @@ export default function QRSettingsSection({ user }: Props) {
             <User size={18} className="text-[#8b5cf6]" />
           </div>
           <div>
-            <div className="text-sm font-semibold">QR моего профиля</div>
-            <div className="text-xs text-[#B9B8BD]">Ссылка на профиль @{user?.username || '…'}</div>
+            <div className="text-sm font-semibold">{t('qr.profileQrTitle')}</div>
+            <div className="text-xs text-[#B9B8BD]">{t('qr.profileQrHint', { username: user?.username || '' })}</div>
           </div>
         </div>
         <button disabled={!profileUrl} onClick={() => setShowProfile(true)} className={btnCls + ' bg-[#8b5cf6] hover:bg-[#7c3aed]'}>
-          <QrCode size={16} /> Показать QR профиля
+          <QrCode size={16} /> {t('qr.showProfileQr')}
         </button>
       </div>
 
@@ -87,12 +86,12 @@ export default function QRSettingsSection({ user }: Props) {
             <LogIn size={18} className="text-[#10b981]" />
           </div>
           <div>
-            <div className="text-sm font-semibold">Сканер QR</div>
-            <div className="text-xs text-[#B9B8BD]">Подтверждает вход на другом устройстве</div>
+            <div className="text-sm font-semibold">{t('qr.scannerTitle')}</div>
+            <div className="text-xs text-[#B9B8BD]">{t('qr.scannerCardHint')}</div>
           </div>
         </div>
         <button onClick={() => { setScanError(''); setScanStatus(''); setScanOpen(true); }} className={btnCls + ' bg-[#10b981] hover:bg-[#0ea371]'}>
-          <ScanLine size={16} /> Сканировать QR входа
+          <ScanLine size={16} /> {t('qr.scannerBtn')}
         </button>
         {scanStatus && (
           <p className="text-sm text-[#10b981] mt-3 flex items-center gap-1.5">
@@ -105,7 +104,7 @@ export default function QRSettingsSection({ user }: Props) {
       <QRModal
         open={showProfile}
         onClose={() => setShowProfile(false)}
-        title="Мой QR профиля"
+        title={t('qr.myQrTitle')}
         subtitle={`@${user?.username || ''}`}
         value={profileUrl}
         avatarUrl={user?.avatar_url ? mediaUrl(user.avatar_url) : null}
