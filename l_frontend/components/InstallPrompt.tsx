@@ -29,6 +29,10 @@ export default function InstallPrompt() {
 
   useEffect(() => {
     if (isStandalone()) return; // уже установлено — кнопка не нужна
+    // 🖥 Внутри десктоп-приложения (Electron trelod) установка PWA бессмысленна
+    try {
+      if ((window as unknown as { trelodDesktop?: { isDesktop?: boolean } }).trelodDesktop?.isDesktop) return;
+    } catch {}
 
     if (isIOS()) {
       // iOS: показываем кастомную подсказку, но не чаще 1 раза в 2 недели
@@ -40,11 +44,22 @@ export default function InstallPrompt() {
       return;
     }
 
+    // 🚫 Пользователь уже отказался? Не показываем больше.
+    // ПК (не Android/iOS-мобилка): отказ — навсегда, смысла пакостить нет.
+    // Мобильные: даём второй шанс через 2 недели.
+    try {
+      const permanent = localStorage.getItem('pwa-install-dismissed-permanent');
+      if (permanent === '1') return;
+      const dismissedAt = localStorage.getItem('pwa-install-dismissed-at');
+      if (dismissedAt && Date.now() - Number(dismissedAt) < 14 * 24 * 3600 * 1000) return;
+    } catch {}
+
     const handler = (e: Event) => {
       // Перехватываем нативный попап установки, показываем свою кнопку.
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setShowButton(true);
+      // Небольшая задержка: не выскакиваем мгновенно при загрузке страницы
+      setTimeout(() => setShowButton(true), 4000);
     };
     const onAppInstalled = () => {
       setShowButton(false);
@@ -71,6 +86,22 @@ export default function InstallPrompt() {
     }
   };
 
+  // 🚫 Крестик: пользователь не хочет — запоминаем и больше не донимаем
+  const dismissInstall = () => {
+    setShowButton(false);
+    setDeferredPrompt(null);
+    try {
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      if (!isMobile) {
+        // ПК: отказ навсегда
+        localStorage.setItem('pwa-install-dismissed-permanent', '1');
+      } else {
+        // Мобильные: через 2 недели напомним один раз
+        localStorage.setItem('pwa-install-dismissed-at', String(Date.now()));
+      }
+    } catch {}
+  };
+
   const dismissIos = () => {
     setIosShow(false);
     try { localStorage.setItem('pwa-ios-asked', String(Date.now())); } catch {}
@@ -79,15 +110,21 @@ export default function InstallPrompt() {
   // Кнопка установки (Chrome/Edge/Android)
   if (showButton) {
     return (
-      <button
-        onClick={handleInstall}
-        className="fixed bottom-20 right-5 z-50 flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white shadow-xl transition-all hover:bg-indigo-700 active:scale-95"
-      >
-        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
-        {t("pwa.install")}
-      </button>
+      <div className="fixed bottom-20 right-5 z-50 flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white shadow-xl">
+        <button onClick={handleInstall} className="flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          {t("pwa.install")}
+        </button>
+        <button
+          onClick={dismissInstall}
+          aria-label="close"
+          className="ml-1 text-white/60 hover:text-white transition-colors"
+        >
+          ✕
+        </button>
+      </div>
     );
   }
 
@@ -102,7 +139,7 @@ export default function InstallPrompt() {
           </div>
           <p className="text-sm text-gray-300">
             Откройте меню <b>«Поделиться»</b> в Safari и выберите <b>«На экран
-            «Домо黻</b> / “Add to Home Screen”.
+            «Домой»»</b> / “Add to Home Screen”.
           </p>
           <button
             onClick={dismissIos}
