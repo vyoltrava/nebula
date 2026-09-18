@@ -18,8 +18,27 @@ function preprocessText(text: string): string {
     return sticker ? sticker.emoji : match;
   });
   processed = processed.replace(/\|\|(.*?)\|\|/g, '<span class="md-spoiler">$1</span>');
+
+  // 📧 Email: прячем адреса в плейсхолдеры ДО замен упоминаний/тегов,
+  // иначе "user@example.com" регулярка @mention превращает в
+  // "user[@example](/mention/example).com" и email перестаёт быть ссылкой.
+  const emails: string[] = [];
+  processed = processed.replace(
+    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b/g,
+    (m) => {
+      emails.push(m);
+      return `\uE000E${emails.length - 1}\uE001`; // приватные символы — безопасны в markdown
+    }
+  );
+
   processed = processed.replace(/@([\wа-яёА-ߨ]+)/g, "[@$1](/mention/$1)");
   processed = processed.replace(/#([\wа-яёА-ߨ]+)/g, "[#$1](/tag/$1)");
+
+  // Возвращаем email как markdown mailto-ссылку
+  processed = processed.replace(/\uE000E(\d+)\uE001/g, (_, i) => {
+    const email = emails[Number(i)];
+    return `[${email}](mailto:${email})`;
+  });
   return processed;
 }
 
@@ -156,6 +175,15 @@ export function MarkdownRenderer({ text, isMessage = false }: { text: string; is
                   <Link href={`/tag/${tag}`} className="font-bold text-[#8b5cf6] hover:text-[#8b5cf6] underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
                     #{tag}
                   </Link>
+                );
+              }
+              // 📧 mailto: — показываем сам адрес, без target="_blank"
+              if (href?.startsWith("mailto:")) {
+                const addr = href.slice(7).replace(/[.,;:!?)]+$/, "");
+                return (
+                  <a href={addr ? `mailto:${addr}` : href} className="font-semibold text-sky-700 dark:text-sky-300 hover:text-sky-800 dark:hover:text-sky-200 underline underline-offset-2 break-all" onClick={(e) => e.stopPropagation()}>
+                    {addr}
+                  </a>
                 );
               }
               const cleanHref = href?.replace(/[.,;:!?)]+$/, "") || "";
