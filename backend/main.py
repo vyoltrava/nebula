@@ -7838,6 +7838,9 @@ def regenerate_backup_codes(
     session: Session = Depends(get_session),
 ):
     """Перегенерирует резервные коды (старые становятся невалидными)"""
+    # Ленивый импорт — не грузим pyotp при старте
+    import pyotp
+
     if not user.totp_enabled:
         raise HTTPException(400, "2FA не включена")
     
@@ -7943,6 +7946,9 @@ def login_2fa(
     session: Session = Depends(get_session),
 ):
     """Второй этап логина — проверка 2FA кода"""
+    # Ленивый импорт — не грузим pyotp при старте
+    import pyotp
+
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(404, "User not found")
