@@ -11,3 +11,5 @@ _TRASH/
 # backups and db - not committed to repo
 *.backup
 *.db
+*.db-wal
+*.db-shm

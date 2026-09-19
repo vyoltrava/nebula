@@ -17,6 +17,66 @@ if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     print("ℹ️ DATABASE_URL: postgres:// → postgresql://")
 
+PREFERRED_DATABASE_URL = DATABASE_URL   # «родной» URL (например, Neon Postgres)
+USING_SQLITE_FALLBACK = False           # True → работаем на файловой БД
+
+# 🦆 АВАРИЙНЫЙ ПЕРЕКЛЮЧАТЕЛЬ (fallback):
+# Если Postgres (Neon) недоступен при старте — исчерпаны лимиты compute-часов,
+# БД suspended/quota exceeded, сеть лежит — соцсеть всё равно должна работать.
+# Тогда переключаемся на локальный SQLite-файл. Файл берём постоянный
+# (nebula.db), чтобы данные накапливались между аварийными запусками, а не
+# терялись при каждом рестарте. Вернуть Postgres обратно можно просто
+# перезапустив сервис, когда Neon снова доступен.
+FALLBACK_DB_URL = os.getenv("NEBULA_FALLBACK_DB", "sqlite:///nebula.db")
+FALLBACK_DISABLED = os.getenv("NEBULA_FALLBACK_DISABLE", "").strip() in ("1", "true", "yes")
+
+
+def _pg_alive(url: str, attempts: int = 3, delay: float = 2.0) -> bool:
+    """Может ли приложение прямо сейчас подключиться к Postgres?
+
+    Пытаемся несколько раз с паузой: у Neon «холодный старт» приостановленного
+    compute — это норма (первые секунды), его нельзя считать аварией.
+    """
+    from sqlalchemy import create_engine as _create_probe, text as _text
+    for attempt in range(1, attempts + 1):
+        probe = None
+        try:
+            probe = _create_probe(
+                url,
+                connect_args={"connect_timeout": 10, "application_name": "nebula-probe"},
+            )
+            with probe.connect() as conn:
+                conn.execute(_text("SELECT 1"))
+            return True
+        except Exception as e:
+            kind = type(e).__name__
+            print(f"[db-failover] попытка {attempt}/{attempts}: Postgres недоступен ({kind}): {e}")
+            if attempt < attempts:
+                import time
+                time.sleep(delay)
+        finally:
+            if probe is not None:
+                try:
+                    probe.dispose()
+                except Exception:
+                    pass
+    return False
+
+
+if (
+    not DATABASE_URL.startswith("sqlite")
+    and not FALLBACK_DISABLED
+    and not _pg_alive(DATABASE_URL)
+):
+    USING_SQLITE_FALLBACK = True
+    DATABASE_URL = FALLBACK_DB_URL
+    print("=" * 70)
+    print("🦆 [db-failover] POSTGRES/NEON НЕДОСТУПЕН — переключаюсь на файловую БД:")
+    print(f"🦆 [db-failover] рабочая БД: {FALLBACK_DB_URL}")
+    print("🦆 [db-failover] соцсеть продолжает работать на SQLite (fallback-режим).")
+    print("🦆 [db-failover] Когда Neon снова доступен — перезапусти сервис, вернёмся на Postgres.")
+    print("=" * 70)
+
 connect_args = {}
 engine_kwargs: dict = {
     "echo": False,
@@ -46,6 +106,21 @@ else:
     })
 
 engine = create_engine(DATABASE_URL, **engine_kwargs)
+
+# 🗄 SQLite-специфика: WAL-журнал (читатели не блокируют писателя и наоборот —
+# критично для веб-приложения), таймаут ожидания блокировки и внешние ключи.
+if DATABASE_URL.startswith("sqlite"):
+    from sqlalchemy import event as _sa_event
+
+    @_sa_event.listens_for(engine, "connect")
+    def _sqlite_pragmas(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA busy_timeout=5000")
+            cursor.execute("PRAGMA foreign_keys=ON")
+        finally:
+            cursor.close()
 
 def _fix_postgres_sequences() -> None:
     """

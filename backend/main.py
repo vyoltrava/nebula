@@ -1456,6 +1456,21 @@ def pwa_version():
         "last_updated": "2026-08-30",
     }
 
+@app.get("/api/db-status")
+def db_status():
+    """🦆 Статус БД: работаем на Postgres или на аварийном SQLite-fallback.
+    Публичный (без токена) — им же пользуется health-check / мониторинг."""
+    from database import USING_SQLITE_FALLBACK, DATABASE_URL as ACTIVE_URL, PREFERRED_DATABASE_URL
+    return {
+        "ok": True,
+        "fallback": USING_SQLITE_FALLBACK,
+        "mode": "sqlite-fallback" if USING_SQLITE_FALLBACK else "postgres",
+        "preferred": PREFERRED_DATABASE_URL.split("@")[-1] if "@" in PREFERRED_DATABASE_URL else PREFERRED_DATABASE_URL,
+        "active": "sqlite://nebula.db" if USING_SQLITE_FALLBACK else (
+            ACTIVE_URL.split("@")[-1] if "@" in ACTIVE_URL else ACTIVE_URL
+        ),
+    }
+
 @app.post("/api/register")
 @limiter.limit("5/minute")
 def register(request: Request, response: Response, data: RegisterIn, session: Session = Depends(get_session)):
