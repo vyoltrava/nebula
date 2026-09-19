@@ -123,10 +123,11 @@ else:
         "keepalives_idle": 30,
         "keepalives_interval": 10,
         "keepalives_count": 5,
-        # 🛡️ Запрос не имеет права висеть вечно: serverless-БД (Neon/Prisma/
-        # Supabase) при холодном старте могут «подвешивать» соединение, из-за
-        # чего startup не успевает открыть порт до Port scan timeout Render.
-        "options": "-c statement_timeout=20000",
+        # 🛡️ Запрос не имеет права висеть вечно, но и не должен резаться раньше
+        # времени: на дешёвом cold-compute (Supabase free) даже CREATE TABLE
+        # идёт >20 сек. 60 сек — баланс: приложение не зависает навечно,
+        # но создание таблиц успевает.
+        "options": "-c statement_timeout=60000",
     })
     # 🅿️ Prisma Postgres pooled-хост имеет лимит соединений по тарифу —
     # большой пул (20+40, как для Neon) даёт «Too many connections».
