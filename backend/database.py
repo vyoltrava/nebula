@@ -6,7 +6,16 @@ load_dotenv(_backend_dir / ".env")
 load_dotenv(_backend_dir.parent / ".env.local")
 
 import os
+import sys
 from sqlmodel import SQLModel, create_engine, Session
+
+# 🛡️ Консоль без UTF-8 (Windows cp1251 и т.п.) не должна ронять импорт
+# из-за эмодзи/юникода в баннерах: просто заменяем непечатаемое.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except Exception:
+        pass
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///nebula.db")
 
@@ -16,6 +25,17 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///nebula.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     print("ℹ️ DATABASE_URL: postgres:// → postgresql://")
+
+# 🔒 Для внешних (serverless) Postgres TLS обязателен; psycopg2 по умолчанию
+# sslmode=prefer, что иногда заканчивается «SSL connection has been closed
+# unexpectedly». Явный require — если юзер не задал свой sslmode в URL.
+# ВАЖНО: делаем это ДО failover-пробника, иначе пробник может забраковать
+# живую БД, которая требует TLS.
+_host = (DATABASE_URL.split("@", 1)[-1].split("/", 1)[0].split(":", 1)[0] or "").lower()
+if not DATABASE_URL.startswith("sqlite") and _host not in ("localhost", "127.0.0.1", "::1", "") and "sslmode=" not in DATABASE_URL:
+    sep = "&" if "?" in DATABASE_URL else "?"
+    DATABASE_URL = f"{DATABASE_URL}{sep}sslmode=require"
+    print("ℹ️ DATABASE_URL: добавлен sslmode=require (внешний Postgres)")
 
 PREFERRED_DATABASE_URL = DATABASE_URL   # «родной» URL (например, Neon Postgres)
 USING_SQLITE_FALLBACK = False           # True → работаем на файловой БД
@@ -31,11 +51,13 @@ FALLBACK_DB_URL = os.getenv("NEBULA_FALLBACK_DB", "sqlite:///nebula.db")
 FALLBACK_DISABLED = os.getenv("NEBULA_FALLBACK_DISABLE", "").strip() in ("1", "true", "yes")
 
 
-def _pg_alive(url: str, attempts: int = 3, delay: float = 2.0) -> bool:
+def _pg_alive(url: str, attempts: int = 2, delay: float = 1.5) -> bool:
     """Может ли приложение прямо сейчас подключиться к Postgres?
 
-    Пытаемся несколько раз с паузой: у Neon «холодный старт» приостановленного
-    compute — это норма (первые секунды), его нельзя считать аварией.
+    Пытаемся несколько раз с короткой паузой: у Neon/Prisma «холодный старт»
+    приостановленного compute — норма, но нельзя долго ждать: Render прибивает
+    сервис, если порт не открыт за ~100 секунд (Port scan timeout).
+    Пробник максимально быстрый: timeout 5 сек, максимум 2 попытки ≈ 12 сек.
     """
     from sqlalchemy import create_engine as _create_probe, text as _text
     for attempt in range(1, attempts + 1):
@@ -43,7 +65,11 @@ def _pg_alive(url: str, attempts: int = 3, delay: float = 2.0) -> bool:
         try:
             probe = _create_probe(
                 url,
-                connect_args={"connect_timeout": 10, "application_name": "nebula-probe"},
+                connect_args={
+                    "connect_timeout": 5,
+                    "application_name": "nebula-probe",
+                    "options": "-c statement_timeout=5000",
+                },
             )
             with probe.connect() as conn:
                 conn.execute(_text("SELECT 1"))
@@ -96,6 +122,10 @@ else:
         "keepalives_idle": 30,
         "keepalives_interval": 10,
         "keepalives_count": 5,
+        # 🛡️ Запрос не имеет права висеть вечно: serverless-БД (Neon/Prisma/
+        # Supabase) при холодном старте могут «подвешивать» соединение, из-за
+        # чего startup не успевает открыть порт до Port scan timeout Render.
+        "options": "-c statement_timeout=20000",
     })
     engine_kwargs.update({
         "pool_pre_ping": True,
@@ -275,10 +305,20 @@ def _self_heal_work_schema():
 
 
 def init_db():
-    SQLModel.metadata.create_all(engine)
-    _ensure_columns()
-    _fix_postgres_sequences()
-    _self_heal_work_schema()
+    """🛡 Неубиваемая инициализация БД: ни одна ошибка не должна помешать
+    старту сервиса и открытию порта (иначе Render: «Port scan timeout»).
+    Если БД недоступна — приложение всё равно поднимется: таблицы добьются
+    при следующем деплое/рестарте, а failover при старте уже решил,
+    на какой БД работаем."""
+    try:
+        SQLModel.metadata.create_all(engine)
+    except Exception as e:
+        print(f"⚠️ init_db: create_all не удался ({type(e).__name__}: {e}) — продолжаем запуск")
+    for _healer in (_ensure_columns, _fix_postgres_sequences, _self_heal_work_schema):
+        try:
+            _healer()
+        except Exception as e:
+            print(f"⚠️ init_db: {_healer.__name__} не удался ({type(e).__name__}: {e}) — продолжаем запуск")
 
 def get_session():
     with Session(engine) as session:
