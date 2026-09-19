@@ -51,13 +51,13 @@ FALLBACK_DB_URL = os.getenv("NEBULA_FALLBACK_DB", "sqlite:///nebula.db")
 FALLBACK_DISABLED = os.getenv("NEBULA_FALLBACK_DISABLE", "").strip() in ("1", "true", "yes")
 
 
-def _pg_alive(url: str, attempts: int = 2, delay: float = 1.5) -> bool:
+def _pg_alive(url: str, attempts: int = 3, delay: float = 3.0) -> bool:
     """Может ли приложение прямо сейчас подключиться к Postgres?
 
     Пытаемся несколько раз с короткой паузой: у Neon/Prisma «холодный старт»
     приостановленного compute — норма, но нельзя долго ждать: Render прибивает
     сервис, если порт не открыт за ~100 секунд (Port scan timeout).
-    Пробник максимально быстрый: timeout 5 сек, максимум 2 попытки ≈ 12 сек.
+    Пробник: timeout 5 сек, 3 попытки с паузой 3 сек ≈ максимум ~21 сек.
     """
     from sqlalchemy import create_engine as _create_probe, text as _text
     for attempt in range(1, attempts + 1):
@@ -127,13 +127,25 @@ else:
         # чего startup не успевает открыть порт до Port scan timeout Render.
         "options": "-c statement_timeout=20000",
     })
-    engine_kwargs.update({
-        "pool_pre_ping": True,
-        "pool_size": 20,
-        "max_overflow": 40,
-        "pool_recycle": 1800,
-        "pool_timeout": 10,
-    })
+    # 🅿️ Prisma Postgres pooled-хост имеет лимит соединений по тарифу —
+    # большой пул (20+40, как для Neon) даёт «Too many connections».
+    if "pooled.db.prisma.io" in DATABASE_URL:
+        engine_kwargs.update({
+            "pool_pre_ping": True,
+            "pool_size": 5,
+            "max_overflow": 10,
+            "pool_recycle": 1800,
+            "pool_timeout": 10,
+        })
+        print("ℹ️ Prisma pooled-хост: пул соединений уменьшен до 5+10 (лимит тарифа)")
+    else:
+        engine_kwargs.update({
+            "pool_pre_ping": True,
+            "pool_size": 20,
+            "max_overflow": 40,
+            "pool_recycle": 1800,
+            "pool_timeout": 10,
+        })
 
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 

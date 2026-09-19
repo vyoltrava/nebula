@@ -38,6 +38,34 @@ def main() -> int:
         env["DATABASE_URL"] = url.replace("postgres://", "postgresql://", 1)
         print("ℹ️ DATABASE_URL: postgres:// → postgresql://")
 
+    # 🅿️ Prisma Postgres (и подобные пулеры): миграции должны идти через
+    # DIRECT_URL (db.prisma.io) — pooled-хост не сохраняет session state и
+    # рвёт долгие запросы → lock/prepared-statement ошибки в Alembic.
+    if env.get("DIRECT_URL"):
+        durl = env["DIRECT_URL"]
+        if durl.startswith("postgres://"):
+            durl = durl.replace("postgres://", "postgresql://", 1)
+        env["DATABASE_URL"] = durl
+        print("ℹ️ Миграции: используется DIRECT_URL (bypass пулера — для Alembic это обязательно)")
+
+    # 🦆 Импорт database.py запускает failover-пробник. Если Postgres мёртв и
+    # включился SQLite-fallback — миграции Alembic НЕ ЗАПУСКАЕМ вовсе:
+    # они написаны на Postgres-SQL (SERIAL/TIMESTAMPTZ/DO $$) и на SQLite
+    # только шумят синтаксическими ошибками. Схему соберёт init_db()/create_all.
+    sys.path.insert(0, str(BACKEND_DIR))
+    import database  # noqa: E402 — side-effect: failover-детект
+    if database.USING_SQLITE_FALLBACK:
+        print("🦆 [db-failover] Активен SQLite-fallback — миграции Alembic пропущены, "
+              "схему соберёт init_db()/create_all. После восстановления Postgres "
+              "перезапусти сервис — миграции применятся обычным путём.")
+        return 0
+
+    # 🚫 MIGRATIONS_SKIP=1 — пропустить Alembic полностью. Для свежей БД это
+    # норм: схему целиком соберёт init_db()/create_all при старте приложения.
+    if os.getenv("MIGRATIONS_SKIP", "").strip() in ("1", "true", "yes"):
+        print("ℹ️ MIGRATIONS_SKIP=1 — миграции Alembic пропущены по настройке.")
+        return 0
+
     strict = os.getenv("MIGRATIONS_STRICT", "") == "1"
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
