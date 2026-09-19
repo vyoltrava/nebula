@@ -57,7 +57,8 @@ def _pg_alive(url: str, attempts: int = 3, delay: float = 3.0) -> bool:
     Пытаемся несколько раз с короткой паузой: у Neon/Prisma «холодный старт»
     приостановленного compute — норма, но нельзя долго ждать: Render прибивает
     сервис, если порт не открыт за ~100 секунд (Port scan timeout).
-    Пробник: timeout 5 сек, 3 попытки с паузой 3 сек ≈ максимум ~21 сек.
+    Пробник: timeout 3 сек, 2 попытки с паузой 1 сек ≈ максимум ~8 сек,
+    чтобы суммарный startup всегда укладывался в Port scan timeout Render.
     """
     from sqlalchemy import create_engine as _create_probe, text as _text
     for attempt in range(1, attempts + 1):
@@ -66,7 +67,7 @@ def _pg_alive(url: str, attempts: int = 3, delay: float = 3.0) -> bool:
             probe = _create_probe(
                 url,
                 connect_args={
-                    "connect_timeout": 5,
+                    "connect_timeout": 3,
                     "application_name": "nebula-probe",
                     "options": "-c statement_timeout=5000",
                 },
