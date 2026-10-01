@@ -69,7 +69,6 @@ def _pg_alive(url: str, attempts: int = 3, delay: float = 3.0) -> bool:
                 connect_args={
                     "connect_timeout": 3,
                     "application_name": "nebula-probe",
-                    "options": "-c statement_timeout=5000",
                 },
             )
             with probe.connect() as conn:
@@ -123,11 +122,10 @@ else:
         "keepalives_idle": 30,
         "keepalives_interval": 10,
         "keepalives_count": 5,
-        # 🛡️ Запрос не имеет права висеть вечно, но и не должен резаться раньше
-        # времени: на дешёвом cold-compute (Supabase free) даже CREATE TABLE
-        # идёт >20 сек. 60 сек — баланс: приложение не зависает навечно,
-        # но создание таблиц успевает.
-        "options": "-c statement_timeout=60000",
+        # ⚠️ НЕ передаём statement_timeout через "options": пулеры (Neon
+        # pgbouncer, Prisma, Supabase transaction pooler) отвергают такие
+        # startup-параметры: «unsupported startup parameter in options».
+        # Таймаут ставим обычной SQL-командой после подключения (см. ниже).
     })
     # 🅿️ Prisma Postgres pooled-хост имеет лимит соединений по тарифу —
     # большой пул (20+40, как для Neon) даёт «Too many connections».
@@ -165,6 +163,22 @@ if DATABASE_URL.startswith("sqlite"):
             cursor.execute("PRAGMA foreign_keys=ON")
         finally:
             cursor.close()
+else:
+    # 🛡️ statement_timeout обычной командой: запрос не может висеть вечно, но
+    # и не режется раньше времени (на дешёвом cold-compute Supabase CREATE TABLE
+    # идёт >20 сек). Через "options" это задать нельзя — пулеры отвергают.
+    from sqlalchemy import event as _sa_event
+
+    @_sa_event.listens_for(engine, "connect")
+    def _pg_statement_timeout(dbapi_connection, connection_record):
+        try:
+            cursor = dbapi_connection.cursor()
+            try:
+                cursor.execute("SET statement_timeout = 60000")
+            finally:
+                cursor.close()
+        except Exception:
+            pass  # не критично: работаем без таймаута, если СУБД не разрешила
 
 def _fix_postgres_sequences() -> None:
     """
