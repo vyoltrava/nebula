@@ -13,3 +13,5 @@ _TRASH/
 *.db
 *.db-wal
 *.db-shm
+*_dump.sql
+nebula_dump.sql
