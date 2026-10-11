@@ -10,9 +10,10 @@
  *
  *  - ZuneSidebar                  — помечает <aside>; CSS превращает его
  *                                   в компактную панель в стиле Windows;
- *  - ZuneChats / ZuneNotifications — разметка списков под плитки Metro;
- *  - плавающая кнопка возврата к стандартной теме;
- *  - переключатель WP-стиля внутри Настроек (SettingsThemeInjector).
+ *  - ZuneChats / ZuneNotifications — разметка списков под плитки Metro.
+ *
+ * Переключение оболочек живёт в ЕДИНОМ окне (IosThemeSelector внутри
+ * iOS SettingsThemeInjector) — здесь Zune только применяет свою трансформацию.
  */
 
 import {
@@ -23,7 +24,6 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { usePathname } from "next/navigation";
 import {
   getCachedShellSwitcherEnabled,
   SHELL_SWITCHER_EVENT,
@@ -38,8 +38,6 @@ import {
   writePreference,
   type ZunePreference,
 } from "./hooks/useZuneTheme";
-import { ZuneThemeToggle } from "./components/ZuneThemeToggle";
-import { SettingsThemeInjector } from "./components/SettingsThemeInjector";
 import { ZuneSidebar } from "./components/ZuneSidebar";
 import { ZuneChats } from "./components/ZuneChats";
 import { ZuneNotifications } from "./components/ZuneNotifications";
@@ -80,9 +78,6 @@ export function ZuneThemeProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(SHELL_SWITCHER_EVENT, sync);
   }, [shellSwitcherEnabled, preference]);
 
-  const pathname = usePathname();
-  const onSettingsRoute = Boolean(pathname?.startsWith("/settings"));
-
   /* Синхронизация внешней системы (класс <body>) с текущим выбором */
   useEffect(() => {
     document.body.classList.toggle(THEME_CLASS, isZune);
@@ -118,17 +113,6 @@ export function ZuneThemeProvider({ children }: { children: ReactNode }) {
           <ZuneNotifications />
         </>
       )}
-
-      {/* Плавающие кнопки поверх UI:
-          тема выключена + Настройки → приглашение попробовать Zune.
-          (Кнопки возврата к стандартной теме ВЕЗДЕ больше нет — в неё нет
-          смысла, переключатель живёт в Настройках. Она только мешала.) */}
-      {mounted && !isZune && onSettingsRoute && shellSwitcherEnabled && (
-        <ZuneThemeToggle floating variant="invite" />
-      )}
-
-      {/* Переключатель темы внутри раздела «Оформление» настроек */}
-      {mounted && shellSwitcherEnabled && <SettingsThemeInjector />}
     </ZuneThemeContext.Provider>
   );
 }

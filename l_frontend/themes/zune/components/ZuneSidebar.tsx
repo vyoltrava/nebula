@@ -19,7 +19,40 @@ export function ZuneSidebar() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const aside = document.querySelector("aside") as HTMLElement | null;
+    /**
+     * ЦЕЛЕВОЙ aside — ТОЛЬКО левая навигация оболочки (Sidebar.tsx).
+     * В документе несколько <aside> (правая доска RightPanel w-80, сайдбар
+     * настроек sticky, доска админки), и document.querySelector("aside")
+     * на разных страницах возвращает РАЗНЫЕ элементы — отсюда «на профиле
+     * ок, на остальных нет». Та же логика поиска, что в IosSidebar:
+     * приоритет уже помеченному, затем aside с навигационными ссылками.
+     */
+    const findNavAside = (): HTMLElement | null => {
+      const list = Array.from(document.querySelectorAll("aside"));
+      /* 1. Уже помеченный Zune — приоритет */
+      const stamped = list.find((a) => a.dataset.zuneSidebar === "true");
+      if (stamped) return stamped;
+      /* 2. aside, внутри которого лежат ссылки основной навигации */
+      const withNav = list.find((a) =>
+        a.querySelector(
+          'a[href="/"], a[href^="/messages"], a[href^="/notifications"], a[href^="/bookmarks"], a[href^="/updates"]'
+        )
+      );
+      if (withNav) return withNav;
+      /* 3. Фолбэк: первый aside, не являющийся правой панелью/доской/карточкой */
+      return (
+        list.find(
+          (a) =>
+            !a.matches(
+              '[class*="w-80"], [class*="backdrop-blur"], [class*="sticky"], [data-ios-board"]'
+            )
+        ) ??
+        list[0] ??
+        null
+      );
+    };
+
+    const aside = findNavAside();
     if (!aside) return;
 
     aside.dataset.zuneSidebar = "true";

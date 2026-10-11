@@ -43,7 +43,6 @@ import { IosNotifications } from "./components/IosNotifications";
 import { IosActions } from "./components/IosActions";
 import { IosBoard } from "./components/IosBoard";
 import { IosSfx } from "./components/IosSfx";
-import { IosShellToggle } from "./components/IosShellToggle";
 import { SettingsThemeInjector } from "./components/SettingsThemeInjector";
 
 /* Признак завершения гидратации (без setState в эффекте) */
@@ -108,11 +107,10 @@ export function IosThemeProvider({ children }: { children: ReactNode }) {
         </>
       )}
 
-      {/* Переключатель трёх тем внутри раздела «Оформление» Настроек */}
+      {/* Единое окно выбора оболочек (Стандарт · Zune · Old iOS) внутри
+          раздела «Оформление» Настроек. Отдельный тумблер IosShellToggle
+          убран — он дублировал радиогруппу IosThemeSelector. */}
       {mounted && shellSwitcherEnabled && <SettingsThemeInjector />}
-      {/* Отдельный тумблер «Оболочка Old iOS» — гейтится тем же флагом,
-          чтобы не дублировать интерфейс при выключенной смене оболочек */}
-      {mounted && shellSwitcherEnabled && <IosShellToggle />}
     </IosThemeContext.Provider>
   );
 }

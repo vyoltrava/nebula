@@ -23,6 +23,24 @@
   background-color: transparent !important;
 }
 
+/* ИСКЛЮЧЕНИЕ: окно выбора оболочки (iOS-селектор) должно оставаться
+   читаемой карточкой даже в теме Zune — иначе фон становится прозрачным и
+   блок сливается с полотном. Возвращаем подложку рамке и её секциям. */
+.zune-theme .ios-theme-selector,
+.zune-theme .ios-theme-selector [class*="bg-paper"],
+.zune-theme .ios-theme-selector [class*="bg-ivory"],
+.zune-theme .ios-theme-selector [class*="bg-gray-50"],
+.zune-theme .ios-theme-selector [class*="bg-gray-100"],
+.zune-theme .ios-theme-selector [class*="bg-white"] {
+  background-color: var(--ist-card, #171717) !important;
+}
+.zune-theme .ios-theme-selector {
+  border-radius: 16px !important;
+  border: 1px solid var(--z-divider) !important;
+}
+
+
+
 /* Flat: никаких скруглений и теней нигде */
 .zune-theme,
 .zune-theme * {
