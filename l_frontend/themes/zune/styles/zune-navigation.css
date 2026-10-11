@@ -36,8 +36,20 @@
 }
 
 /* Иконки наследуют цвет пункта — гарантия белых иконок (фикс бага) */
-.zune-theme [data-zune-sidebar] svg {
+.zune-theme [data-zune-sidebar] svg:not([data-brand-logo]) {
   color: inherit !important;
+}
+
+/* Логотип (BrandIcon) — НЕ трогаем белением иконок; в Zune делаем его
+   нейтрально-белым фирменным знаком, а не текучим белым пунктов меню */
+.zune-theme [data-zune-sidebar] svg[data-brand-logo] {
+  color: #ffffff !important;
+}
+
+/* Текст логотипа «trelod» рядом с иконкой — тоже нейтральный белый,
+   чтобы знак и надпись совпадали (иначе h1 уходит в фиолетовый dark) */
+.zune-theme [data-zune-sidebar] h1.font-logo {
+  color: #ffffff !important;
 }
 .zune-theme [data-zune-sidebar] a > span:last-child {
   flex: 1;

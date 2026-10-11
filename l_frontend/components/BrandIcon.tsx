@@ -12,6 +12,7 @@ export function BrandIcon({ className = "" }: { className?: string }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={`${className} text-[#3D1F6D] dark:text-[#8b5cf6] shrink-0`}
+      data-brand-logo="true"
       aria-hidden="true"
     >
       <path d="M509.336 772.147C531.947 782.673 555.647 798.178 577.107 814.208C568.969 828.412 553.668 837.982 536.131 837.982H488.932C470.102 837.982 453.85 826.949 446.276 810.993C466.418 796.187 488.324 782.051 509.336 772.147Z" fill="currentColor"/>
