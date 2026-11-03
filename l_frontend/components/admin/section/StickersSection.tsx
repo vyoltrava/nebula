@@ -81,7 +81,17 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
     ]);
     if (packsRes.ok) setPacks(await packsRes.json());
     if (badgesRes.ok) setBadges(await badgesRes.json());
-    if (reactionsRes.ok) setReactionPacks(await reactionsRes.json());
+    if (reactionsRes.ok) {
+      const packs = await reactionsRes.json();
+      setReactionPacks(packs);
+      // Синхронизируем локальный конфиг реакций с текущим состоянием с сервера,
+      // иначе при нажатии "Сохранить" reactionCfg будет пустым и конфиг сотрётся.
+      const nextCfg: Record<string, number[] | null> = {};
+      packs.forEach((p: any) => {
+        nextCfg[String(p.id)] = Array.isArray(p.selected) ? [...p.selected] : null;
+      });
+      setReactionCfg(nextCfg);
+    }
     if (userPacksRes.ok) setUserPacks(await userPacksRes.json());
   }
 
