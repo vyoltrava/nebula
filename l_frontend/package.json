@@ -26,7 +26,7 @@
     "react-easy-crop": "^6.2.3",
     "react-markdown": "^10.1.0",
     "rehype-raw": "^7.0.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.3.4",
@@ -42,6 +42,7 @@
     "wait-on": "^9.1.0"
   },
   "resolutions": {
-    "@rolldown/binding-openharmony-arm64": "1.2.4"
+    "@rolldown/binding-openharmony-arm64": "1.2.4",
+    "mdast-util-gfm-table": "^1.0.0"
   }
 }
