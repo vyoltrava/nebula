@@ -1,10 +1,10 @@
 # Maintainer: Nebula Team <contact@nebula.app>
-pkgname=nebula-desktop
+pkgname=trelod-desktop
 pkgver=1.0.0
 pkgrel=1
-pkgdesc="Nebula — anonymous social messenger for desktop (Social network + E2EE chats + Video calls)"
+pkgdesc="Trelod — anonymous social desktop application (Social network + E2EE chats + Video calls)"
 arch=('x86_64')
-url="https://nebula.app"
+url="https://trelod.app"
 license=('PROPRIETARY')
 depends=('electron' 'gtk3' 'nss' 'alsa-lib' 'libxcb' 'libxfixes' 'libxrender' 'libxdamage' 'libgcrypt')
 makedepends=('nodejs' 'npm' 'python')
@@ -16,33 +16,33 @@ package() {
   cd "$startdir"
 
   # Install the electron app from local source
-  install -d "$pkgdir/opt/nebula"
-  cp -r main package.json electron-builder.yml scripts "$pkgdir/opt/nebula/"
+  install -d "$pkgdir/opt/trelod"
+  cp -r main package.json electron-builder.yml scripts "$pkgdir/opt/trelod/"
 
   # Create launch script
   install -d "$pkgdir/usr/bin"
-  cat > "$pkgdir/usr/bin/nebula" << 'LAUNCHER'
+  cat > "$pkgdir/usr/bin/trelod" << 'LAUNCHER'
 #!/bin/bash
-cd /opt/nebula
+cd /opt/trelod
 NEBULA_APP_URL="${NEBULA_APP_URL:-https://trelod.vercel.app}" exec electron main/index.js "$@"
 LAUNCHER
-  chmod +x "$pkgdir/usr/bin/nebula"
+  chmod +x "$pkgdir/usr/bin/trelod"
 
   # Install desktop file
   install -d "$pkgdir/usr/share/applications"
-  cat > "$pkgdir/usr/share/applications/nebula.desktop" << 'DESKTOP'
+  cat > "$pkgdir/usr/share/applications/trelod.desktop" << 'DESKTOP'
 [Desktop Entry]
-Name=Nebula
+Name=Trelod
 Comment=Anonymous social platform & encrypted messenger
-Exec=nebula
-Icon=nebula
+Exec=trelod
+Icon=trelod
 Type=Application
 Categories=Network;InstantMessaging;
-X-DesktopNames=nebula
+X-DesktopNames=trelod
 DESKTOP
 
   # Install icon from the frontend public folder
   install -d "$pkgdir/usr/share/pixmaps"
   install -Dm644 "$startdir/../l_frontend/public/pwa/icon-512.png" \
-    "$pkgdir/usr/share/pixmaps/nebula.png"
+    "$pkgdir/usr/share/pixmaps/trelod.png"
 }

@@ -1,9 +1,9 @@
 {
-  "name": "nebula-linux",
+  "name": "trelod-linux",
   "version": "1.0.0",
-  "description": "Nebula — десктопное приложение для Arch Linux и других дистрибутивов",
+  "description": "Trelod — desktop application for Arch Linux and other distributions",
   "main": "main/index.js",
-  "author": "Nebula",
+  "author": "trelod",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
@@ -18,17 +18,17 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "productName": "nebula",
-    "appId": "nebula.linux",
+    "productName": "trelod",
+    "appId": "trelod.linux",
     "linux": {
       "category": "Utility",
       "distributionOptions": {
         "deb": {
-          "synopsis": "Nebula — аноциальный социальный мессенджер",
-          "description": "Полноценный клиент Nebula для Linux"
+          "synopsis": "Trelod — anonymous social desktop application",
+          "description": "Full-fledged Trelod client for Linux"
         },
         "appimage": {
-          "synopsis": "Nebula — аноциальный социальный мессенджер"
+          "synopsis": "Trelod — anonymous social desktop application"
         }
       }
     },

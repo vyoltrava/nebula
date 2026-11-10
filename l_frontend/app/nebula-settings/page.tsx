@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Sparkles, Sun, Bell, ShieldCheck, ChevronRight,
+  ArrowLeft, Sparkles, Sun, Bell, ShieldCheck, ChevronRight, Download,
   KeyRound, Lock, Zap, Languages, User, LogOut, Eye, EyeOff,
   AlertCircle, CheckCircle2, Copy, ShieldAlert, X, CreditCard, QrCode,
 } from "lucide-react";
@@ -190,6 +190,7 @@ export default function NebulaSettingsPage() {
     { id: "language", icon: Languages, color: "text-purple-500", title: t("nebula.secLanguage"), hint: t("nebula.hintLanguage") },
     { id: "payments", icon: CreditCard, color: "text-violet-500", title: t("nebula.secPayments"), hint: t("nebula.hintPayments") },
     { id: "qr", icon: QrCode, color: "text-[#8b5cf6]", title: t("qr.sectionTitle"), hint: t("qr.sectionHint") },
+    { id: "download", icon: Download, color: "text-emerald-500", title: t("download.download"), hint: t("download.subtitle") },
   ];
 
   return (
@@ -267,6 +268,11 @@ export default function NebulaSettingsPage() {
                     {s.id === "language" && <LanguageSwitcher />}
                     {s.id === "payments" && <PaymentShop />}
                     {s.id === "qr" && <QRSettingsSection user={user} />}
+                    {s.id === "download" && (
+                      <button onClick={() => router.push("/download")} className="rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium py-2.5 px-4 transition-colors">
+                        {t("download.title")}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { setToken } from "@/lib/auth";
 import { requestLoginQr, pollLoginQr, confirmLoginQr } from "@/lib/qr";
 import PrettyQR from "@/components/qr/PrettyQR";
-import { ShieldCheck, X, QrCode } from "lucide-react";
+import { ShieldCheck, X, QrCode, Download } from "lucide-react";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/Button";
@@ -364,6 +364,10 @@ export default function LoginPage() {
             <div className="mt-6 pt-4 border-t border-line dark:border-white/10 flex justify-center">
               <LanguageSwitcher variant="compact" />
             </div>
+            <a href="/download" className="mt-4 flex items-center justify-center gap-2 text-sm text-[#8b5cf6] hover:text-purple-400 transition-colors">
+              <Download size={16} />
+              {t("download.download")}
+            </a>
           </>
         )}
       </div>

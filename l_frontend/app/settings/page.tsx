@@ -27,6 +27,7 @@ import {
   CreditCard,
   ShoppingBag,
   QrCode,
+  Download,
 } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
 import { PushSettings } from "@/components/PushSettings";
@@ -42,7 +43,7 @@ import { PrivacyTab } from "@/components/settings/PrivacyTab";
 import { Button, IconButton } from "@/components/ui/Button";
 import QRSettingsSection from "@/components/qr/QRSettingsSection";
 
-type View = "profile" | "appearance" | "notifications" | "permissions" | "messages" | "privacy" | "security" | "nebula" | "shop" | "qr";
+type View = "profile" | "appearance" | "notifications" | "permissions" | "messages" | "privacy" | "security" | "nebula" | "shop" | "qr" | "download";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -59,7 +60,7 @@ export default function SettingsPage() {
   // Поддержка ?view=... (например, из Nebula-настроек: /settings?view=security)
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("view");
-    const valid: View[] = ["profile", "appearance", "notifications", "permissions", "messages", "privacy", "security", "nebula", "shop"];
+    const valid: View[] = ["profile", "appearance", "notifications", "permissions", "messages", "privacy", "security", "nebula", "shop", "qr", "download"];
     if (v && valid.includes(v as View)) setView(v as View);
   }, []);
 
@@ -338,6 +339,7 @@ async function activate2FA() {
     { id: "messages", label: t("settings.liveMessages"), icon: Zap },
     { id: "security", label: t("settings.security"), icon: ShieldCheck },
     { id: "qr", label: t("qr.sectionTitle"), icon: QrCode },
+    { id: "download", label: t("download.download"), icon: Download },
     { id: "nebula", label: "Nebula", icon: Sparkles },
   ];
 
@@ -433,6 +435,15 @@ async function activate2FA() {
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">{t("qr.sectionTitle")}</h2>
                 <QRSettingsSection user={user} />
+              </div>
+            )}
+            {view === "download" && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold">{t("download.title")}</h2>
+                <p className="text-sm text-[#B9B8BD]">{t("download.subtitle")}</p>
+                <Button icon={Download} onClick={() => router.push("/download")}>
+                  {t("download.download")}
+                </Button>
               </div>
             )}
             {/* ---------- ПРОФИЛЬ ---------- */}

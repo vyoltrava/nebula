@@ -1,9 +1,9 @@
 # electron-builder.yml — Linux сборка (deb, appimage)
-#   npm run dist   → release/nebula-<version>.AppImage / nebula-<version>.deb
+#   npm run dist   → release/trelod-<version>.AppImage / trelod-<version>.deb
 #   npm run release <version> → копирует AppImage/deb в публичную папку + обновляет update.json
 
-appId: nebula.linux
-productName: nebula
+appId: trelod.linux
+productName: trelod
 
  directories:
    output: release
@@ -27,15 +27,15 @@ linux:
 
   # Deb-пакет настроек
   deb:
-    synopsis: "Nebula — аноциальный социальный мессенджер"
-    description: "Полноценный клиент Nebula для Linux"
+    synopsis: "Trelod — anonymous social desktop application"
+    description: "Full-fledged Trelod client for Linux"
     categories: Utility
 
   # AppImage-настроек
   appimage:
-    synopsis: "Nebula — аноциальный социальный мессенджер"
+    synopsis: "Trelod — anonymous social desktop application"
 
 # Иконка берётся из l_frontend/public/ — единый источник (git), дублей в linux/ нет.
 
 # Имя артефакта важно для release-скрипта:
-artifactName: nebula-${version}.${ext}
+artifactName: trelod-${version}.${ext}

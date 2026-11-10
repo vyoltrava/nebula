@@ -66,13 +66,14 @@
 
 Perfect for bloggers who want direct content with their audience, and for communities that need secure communication.
 
-### Linux Desktop
-- Electron app for Arch Linux (and other distributions)
+### Trelod Desktop (Linux)
+- Electron app named `trelod` with NSIS-style installer
 - Auto-updates from update.json hosted with the frontend
 - Silent background updates
-- NSIS-style installer via electron-builder
+- Auto-updates from update.json hosted with the frontend
 - Available as `.AppImage`, `.deb`, and `.rpm` packages
-- Integration with system tray, notifications, and native themes
+- Install via `makepkg -si` or run `trelod` command directly
+- Installed to `/opt/trelod` with launcher script `/usr/bin/trelod`
 
 ### Monetization
 - Payment module for selling roles and badges

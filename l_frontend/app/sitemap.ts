@@ -6,7 +6,7 @@ import type { MetadataRoute } from "next";
 export default function sitemap(): MetadataRoute.Sitemap {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://trelod.app";
   const now = new Date();
-  return ["", "/rules", "/login"].map((path) => ({
+  return ["", "/rules", "/login", "/download"].map((path) => ({
     url: `${site}${path}`,
     lastModified: now,
     changeFrequency: "daily",

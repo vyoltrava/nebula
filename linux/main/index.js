@@ -13,7 +13,7 @@ function createWindow() {
       contextIsolation: true
     },
     show: false,
-    title: 'Nebula',
+    title: 'trelod',
     icon: path.join(__dirname, '..', 'public', 'icon.png')
   });
 
@@ -30,6 +30,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  app.setName('trelod');
   createWindow();
 
   app.on('activate', () => {

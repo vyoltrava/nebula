@@ -1155,5 +1155,26 @@ channels: {
     pollError: "Помилка перевірки QR",
     networkError: "Мережева помилка",
   },
+  download: {
+    title: "Завантажити Trelod",
+    subtitle: "Отримайте Trelod для свою платформи",
+    detected: "Визначена платформа:",
+    detectedWindows: "Windows",
+    detectedLinux: "Linux",
+    detectedAndroid: "Android",
+    detectedIos: "iPhone/iPad",
+    detectedOther: "Інші",
+    install: "Встановити",
+    download: "Завантажити",
+    version: "Версія",
+    size: "Розмір",
+    iosPwaNotice: "На iPhone/iPad можна використовувати Trelod як PWA — відкрийте сайт у Safari та натисніть 'Додати до головного екрана'.",
+    iosPwaButton: "Відкрити як PWA",
+    archInstructions: "Для користувачів Arch Linux також можна встановити через makepkg -si:",
+    otherPlatforms: "Всі платформи",
+    howToInstallWindows: "Як установити на Windows",
+    howToInstallLinux: "Як установити на Linux",
+    howToInstallAndroid: "Як установити на Android"
+  }
 };
 export type Dictionary = typeof uk;

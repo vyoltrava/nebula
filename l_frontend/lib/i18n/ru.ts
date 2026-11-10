@@ -1154,6 +1154,25 @@ channels: {
     pollError: "Ошибка проверки QR",
     networkError: "Сетевая ошибка",
   },
+  download: {
+    title: "Скачать Trelod",
+    subtitle: "Получите Trelod для своей платформы",
+    detected: "Обнаруженная платформа:",
+    detectedWindows: "Windows",
+    detectedLinux: "Linux",
+    detectedAndroid: "Android",
+    detectedIos: "iPhone/iPad",
+    detectedOther: "Другие",
+    install: "Установить",
+    download: "Скачать",
+    version: "Версия",
+    size: "Размер",
+    iosPwaNotice: "На iPhone/iPad можно использовать Trelod как PWA — откройте сайт в Safari и нажмите 'Добавить на главный экран'.",
+    iosPwaButton: "Открыть как PWA",
+    archInstructions: "Для пользователей Arch Linux также можно установить через makepkg -si:",
+    otherPlatforms: "Все платформы",
+    howToInstallWindows: "Как установить на Windows",
+    howToInstallLinux: "Как установить на Linux",
+    howToInstallAndroid: "Как установить на Android"
+  },
 };
-
-

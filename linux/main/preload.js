@@ -1,13 +1,13 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('nebulaDesktop, {
+contextBridge.exposeInMainWorld('trelodDesktop', {
   version: () => {
     return require('electron').remote.app.getVersion();
   },
   checkUpdate: () => {
-    return window.nebulaDesktop.checkUpdate();
+    return window.trelodDesktop.checkUpdate();
   },
   downloadAndInstall: () => {
-    return window.nebulaDesktop.downloadAndInstall();
+    return window.trelodDesktop.downloadAndInstall();
   }
 });
