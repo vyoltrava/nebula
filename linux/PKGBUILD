@@ -1,0 +1,43 @@
+# Maintainer: Nebula Team <contact@nebula.app>
+pkgname=nebula-desktop
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Nebula — аноциальный социальный мессенджер для десктопа (Социальная сеть + E2EE чаты + Video calls)"
+arch=('x86_64')
+url="https://nebula.app"
+license=('PROPRIETARY')
+depends=('electron' 'gtk3' 'nss' 'alsa-lib' 'libxcb' 'libxfixes' 'libxrender' 'libxdamage' 'libgcrypt')
+makedepends=('node' 'npm' 'python')
+options=('!strip')
+
+package() {
+  # Install the electron app from local source
+  mkdir -p "$pkgdir/opt/nebula"
+  cp -r main package.json electron-builder.yml scripts public "$pkgdir/opt/nebula/"
+  
+  # Create launch script
+  mkdir -p "$pkgdir/usr/bin"
+  cat > "$pkgdir/usr/bin/nebula" << 'LAUNCHER'
+#!/bin/bash
+cd /opt/nebula
+NEBULA_APP_URL="${NEBULA_APP_URL:-https://trelod.vercel.app}" exec electron main/index.js "$@"
+LAUNCHER
+  chmod +x "$pkgdir/usr/bin/nebula"
+  
+  # Install desktop file
+  mkdir -p "$pkgdir/usr/share/applications"
+  cat > "$pkgdir/usr/share/applications/nebula.desktop" << DESKTOP
+[Desktop Entry]
+Name=Nebula
+Comment=Anonymous social platform & encrypted messenger
+Exec=nebula
+Icon=nebula
+Type=Application
+Categories=Network;InstantMessaging;
+DesktopNames=nebula
+DESKTOP
+  
+  # Install icon
+  mkdir -p "$pkgdir/usr/share/pixmaps"
+  cp "$pkgdir/opt/nebula/public/pwa/icon-512.png" "$pkgdir/usr/share/pixmaps/nebula.png"
+}
