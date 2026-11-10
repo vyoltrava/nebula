@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Nebula
+Comment=Anonymous social platform & encrypted messenger
+Exec=nebula
+Icon=nebula
+Type=Application
+Categories=Network;InstantMessaging;
+DesktopNames=nebula

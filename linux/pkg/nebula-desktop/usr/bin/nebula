@@ -1,0 +1,3 @@
+#!/bin/bash
+cd /opt/nebula
+NEBULA_APP_URL="${NEBULA_APP_URL:-https://trelod.vercel.app}" exec electron main/index.js "$@"

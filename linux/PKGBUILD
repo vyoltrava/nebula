@@ -2,31 +2,35 @@
 pkgname=nebula-desktop
 pkgver=1.0.0
 pkgrel=1
-pkgdesc="Nebula — аноциальный социальный мессенджер для десктопа (Социальная сеть + E2EE чаты + Video calls)"
+pkgdesc="Nebula — anonymous social messenger for desktop (Social network + E2EE chats + Video calls)"
 arch=('x86_64')
 url="https://nebula.app"
 license=('PROPRIETARY')
 depends=('electron' 'gtk3' 'nss' 'alsa-lib' 'libxcb' 'libxfixes' 'libxrender' 'libxdamage' 'libgcrypt')
-makedepends=('node' 'npm' 'python')
+makedepends=('nodejs' 'npm' 'python')
 options=('!strip')
+source=()
+sha256sums=()
 
 package() {
+  cd "$startdir"
+
   # Install the electron app from local source
-  mkdir -p "$pkgdir/opt/nebula"
-  cp -r main package.json electron-builder.yml scripts public "$pkgdir/opt/nebula/"
-  
+  install -d "$pkgdir/opt/nebula"
+  cp -r main package.json electron-builder.yml scripts "$pkgdir/opt/nebula/"
+
   # Create launch script
-  mkdir -p "$pkgdir/usr/bin"
+  install -d "$pkgdir/usr/bin"
   cat > "$pkgdir/usr/bin/nebula" << 'LAUNCHER'
 #!/bin/bash
 cd /opt/nebula
 NEBULA_APP_URL="${NEBULA_APP_URL:-https://trelod.vercel.app}" exec electron main/index.js "$@"
 LAUNCHER
   chmod +x "$pkgdir/usr/bin/nebula"
-  
+
   # Install desktop file
-  mkdir -p "$pkgdir/usr/share/applications"
-  cat > "$pkgdir/usr/share/applications/nebula.desktop" << DESKTOP
+  install -d "$pkgdir/usr/share/applications"
+  cat > "$pkgdir/usr/share/applications/nebula.desktop" << 'DESKTOP'
 [Desktop Entry]
 Name=Nebula
 Comment=Anonymous social platform & encrypted messenger
@@ -34,10 +38,11 @@ Exec=nebula
 Icon=nebula
 Type=Application
 Categories=Network;InstantMessaging;
-DesktopNames=nebula
+X-DesktopNames=nebula
 DESKTOP
-  
-  # Install icon
-  mkdir -p "$pkgdir/usr/share/pixmaps"
-  cp "$pkgdir/opt/nebula/public/pwa/icon-512.png" "$pkgdir/usr/share/pixmaps/nebula.png"
+
+  # Install icon from the frontend public folder
+  install -d "$pkgdir/usr/share/pixmaps"
+  install -Dm644 "$startdir/../l_frontend/public/pwa/icon-512.png" \
+    "$pkgdir/usr/share/pixmaps/nebula.png"
 }
