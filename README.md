@@ -1,6 +1,10 @@
 ﻿# Nebula
 
-Nebula вЂ” anonymous social platform (social network + messenger) with end-to-end encryption (E2EE). A single product combining a social feed, encrypted messaging, WebRTC audio/video calls, a suggestions forum, an admin panel, monetization, PWA, and native mobile/desktop wrappers.
+![Nebula](https://raw.githubusercontent.com/vyoltrava/nebula/main/public/nebula-logo.svg)
+
+**Nebula** — аноциальная социальная платформа, объединяющая социальную сеть и мессенджер с end-to-end encryption (E2EE). Единый продукт, сочетающий ленту постов, защищенные чаты, видеозвонки, форум предложений, админ-панель, монетизацию, PWA и нативные мобильные/десктопные обертки.
+
+> **Nebula Mode** — режим, превращающий блог в мессенджер (см. ниже).
 
 ---
 
@@ -11,6 +15,7 @@ Nebula вЂ” anonymous social platform (social network + messenger) with end-t
 | `backend/` | FastAPI backend (WebSocket /ws + REST /api/*) |
 | `l_frontend/` | Canonical frontend (Next.js 16, App Router, React 19, TypeScript) |
 | `desktop/` | Electron desktop app for Windows (NSIS installer, "trelod") |
+| `linux/` | **Electron desktop app for Arch Linux (and other distros)** |
 | `mobile/` | Capacitor mobile project (Android APK, iOS) |
 
 ---
@@ -51,6 +56,25 @@ Nebula вЂ” anonymous social platform (social network + messenger) with end-t
 - Electron app named "trelod" with NSIS installer
 - Auto-updates from update.json hosted with the frontend
 - Silent background updates
+
+### Nebula Mode — режим "блог → мессенджер"
+**Nebula Mode** — уникальный режим, превращающий блог в анонимный мессенджер:
+- Блог-режим и мессенджер-режим переключаются одной кнопкой
+- End-to-end encryption везде по умолчанию
+- WebRTC видео-звонки в любом чате
+- Групповые чаты с любым числом участников
+- Push-уведомления о новых сообщениях
+- Теги и категории для постов и чатов
+
+Идеально для блогеров, желающих прямой контент с аудиторией, и сообществ, нуждающихся в защищенной связи.
+
+### Linux Desktop
+- Electron app for Arch Linux (and other distributions)
+- Auto-updates from update.json hosted with the frontend
+- Silent background updates
+- NSIS-style installer via electron-builder
+- Available as `.AppImage`, `.deb`, and `.rpm` packages
+- Integration with system tray, notifications, and native themes
 
 ### Monetization
 - Payment module for selling roles and badges
@@ -182,6 +206,15 @@ npx cap open android
 cd desktop
 npm install
 npm run dist
+```
+
+### Desktop (Arch Linux)
+```bash
+cd linux
+npm install
+npm run dist
+# Или запуск в dev-режиме:
+NEBULA_APP_URL=http://localhost:3000 npm run dev
 ```
 
 ---

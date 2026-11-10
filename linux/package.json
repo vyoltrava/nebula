@@ -1,0 +1,39 @@
+{
+  "name": "nebula-linux",
+  "version": "1.0.0",
+  "description": "Nebula — десктопное приложение для Arch Linux и других дистрибутивов",
+  "main": "main/index.js",
+  "author": "Nebula",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "dev": "electron .",
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --linux deb",
+    "release": "node scripts/release-linux.mjs"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "productName": "nebula",
+    "appId": "nebula.linux",
+    "linux": {
+      "category": "Utility",
+      "distributionOptions": {
+        "deb": {
+          "synopsis": "Nebula — аноциальный социальный мессенджер",
+          "description": "Полноценный клиент Nebula для Linux"
+        },
+        "appimage": {
+          "synopsis": "Nebula — аноциальный социальный мессенджер"
+        }
+      }
+    },
+    "nsis": {
+      "allowToChangeAppDirectory": true
+    }
+  }
+}
