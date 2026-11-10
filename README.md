@@ -1,10 +1,8 @@
-﻿# Nebula
+# Nebula
 
-![Nebula](https://raw.githubusercontent.com/vyoltrava/nebula/main/public/nebula-logo.svg)
+**Nebula** is an anonymous social platform combining a social network and a messenger with end-to-end encryption (E2EE). A single product featuring a post feed, secure chats, video calls, a suggestions forum, an admin panel, monetization, PWA, and native mobile/desktop wrappers.
 
-**Nebula** — аноциальная социальная платформа, объединяющая социальную сеть и мессенджер с end-to-end encryption (E2EE). Единый продукт, сочетающий ленту постов, защищенные чаты, видеозвонки, форум предложений, админ-панель, монетизацию, PWA и нативные мобильные/десктопные обертки.
-
-> **Nebula Mode** — режим, превращающий блог в мессенджер (см. ниже).
+> **Nebula Mode** — a mode that turns a blog into a messenger (see below).
 
 ---
 
@@ -57,16 +55,16 @@
 - Auto-updates from update.json hosted with the frontend
 - Silent background updates
 
-### Nebula Mode — режим "блог → мессенджер"
-**Nebula Mode** — уникальный режим, превращающий блог в анонимный мессенджер:
-- Блог-режим и мессенджер-режим переключаются одной кнопкой
-- End-to-end encryption везде по умолчанию
-- WebRTC видео-звонки в любом чате
-- Групповые чаты с любым числом участников
-- Push-уведомления о новых сообщениях
-- Теги и категории для постов и чатов
+### Nebula Mode — blog → messenger mode
+**Nebula Mode** is a unique mode that turns a blog into an anonymous messenger:
+- Blog mode and messenger mode switch with a single button
+- End-to-end encryption everywhere by default
+- WebRTC video calls in any chat
+- Group chats with any number of participants
+- Push notifications for new messages
+- Tags and categories for posts and chats
 
-Идеально для блогеров, желающих прямой контент с аудиторией, и сообществ, нуждающихся в защищенной связи.
+Perfect for bloggers who want direct content with their audience, and for communities that need secure communication.
 
 ### Linux Desktop
 - Electron app for Arch Linux (and other distributions)
@@ -87,59 +85,59 @@
 ## Technical Stack
 
 ### Backend (backend/)
-- Python + FastAPI вЂ” ~233 REST endpoints + WebSocket /ws
-- SQLModel / SQLAlchemy 2.0 вЂ” 55 database tables, PostgreSQL (production) / SQLite (local), Alembic migrations
-- Authentication вЂ” JWT (PyJWT, python-jose), bcrypt + passlib, refresh tokens, 2FA (pyotp)
-- WebSocket вЂ” connection manager, chat rooms, call signaling, real-time counters
-- Web Push вЂ” pywebpush + py-vapid (VAPID)
-- Media вЂ” Cloudinary SDK, Pillow, imageio-ffmpeg (video notes), OG link previews (beautifulsoup4)
-- Payments вЂ” payments.py, payment_providers.py (Stripe, manual)
-- Monitoring вЂ” Sentry SDK, structlog, performance middleware
-- Rate limiting вЂ” slowapi (Redis or in-memory fallback)
+- Python + FastAPI — ~233 REST endpoints + WebSocket /ws
+- SQLModel / SQLAlchemy 2.0 — 55 database tables, PostgreSQL (production) / SQLite (local), Alembic migrations
+- Authentication — JWT (PyJWT, python-jose), bcrypt + passlib, refresh tokens, 2FA (pyotp)
+- WebSocket — connection manager, chat rooms, call signaling, real-time counters
+- Web Push — pywebpush + py-vapid (VAPID)
+- Media — Cloudinary SDK, Pillow, imageio-ffmpeg (video notes), OG link previews (beautifulsoup4)
+- Payments — payments.py, payment_providers.py (Stripe, manual)
+- Monitoring — Sentry SDK, structlog, performance middleware
+- Rate limiting — slowapi (Redis or in-memory fallback)
 
 ### Frontend (l_frontend/)
 - Next.js 16 (App Router) + React 19 + TypeScript 5
 - Tailwind CSS 4 (@tailwindcss/postcss)
-- Cryptography вЂ” @noble/ciphers, @noble/curves, @noble/hashes for client-side E2EE
-- UI вЂ” lucide-react, @headlessui/react, react-easy-crop, react-markdown + remark-gfm + rehype-raw, isomorphic-dompurify, next-themes, qrcode.react, html5-qrcode
-- PWA вЂ” service worker, manifest, offline page, push notifications, background sync
-- i18n вЂ” Russian, Ukrainian, English
-- Shells вЂ” Classic, Dock, Orbit navigation modes
-- Testing вЂ” Vitest
+- Cryptography — @noble/ciphers, @noble/curves, @noble/hashes for client-side E2EE
+- UI — lucide-react, @headlessui/react, react-easy-crop, react-markdown + remark-gfm + rehype-raw, isomorphic-dompurify, next-themes, qrcode.react, html5-qrcode
+- PWA — service worker, manifest, offline page, push notifications, background sync
+- i18n — Russian, Ukrainian, English
+- Shells — Classic, Dock, Orbit navigation modes
+- Testing — Vitest
 
 ### Mobile / Desktop
-- Capacitor вЂ” Android + iOS builds, native plugins, Gradle
-- Electron + electron-builder вЂ” NSIS installer, auto-updates from static CDN
-- Deploy вЂ” Render (backend) + Vercel (frontend)
+- Capacitor — Android + iOS builds, native plugins, Gradle
+- Electron + electron-builder — NSIS installer, auto-updates from static CDN
+- Deploy — Render (backend) + Vercel (frontend)
 
 ---
 
 ## API Overview
 
 ### Authentication
-- POST /api/register вЂ” user registration (JWT issued)
-- POST /api/login вЂ” login (access + refresh tokens)
-- POST /api/login/2fa вЂ” two-factor authentication
+- POST /api/register — user registration (JWT issued)
+- POST /api/login — login (access + refresh tokens)
+- POST /api/login/2fa — two-factor authentication
 
 ### Posts
-- GET /api/posts вЂ” feed
-- POST /api/posts вЂ” create post
-- GET /api/posts/following вЂ” following feed
-- POST /api/posts/{id}/bookmark вЂ” bookmark/unbookmark
-- GET /api/bookmarks вЂ” list bookmarks
+- GET /api/posts — feed
+- POST /api/posts — create post
+- GET /api/posts/following — following feed
+- POST /api/posts/{id}/bookmark — bookmark/unbookmark
+- GET /api/bookmarks — list bookmarks
 
 ### Chats & Messages
-- WebSocket /ws вЂ” real-time messaging and call signaling
+- WebSocket /ws — real-time messaging and call signaling
 - REST endpoints for chat management and message history
 
 ### Calls (WebRTC)
-- GET /api/ice-servers вЂ” TURN/ICE credentials (JWT required)
+- GET /api/ice-servers — TURN/ICE credentials (JWT required)
 
 ### Payments
-- GET /api/payments/system/status вЂ” payment system status
-- POST /api/payments/create вЂ” create payment (Stripe Checkout)
-- GET /api/payments/available вЂ” available paid roles for user
-- GET /api/payments/my вЂ” purchase history
+- GET /api/payments/system/status — payment system status
+- POST /api/payments/create — create payment (Stripe Checkout)
+- GET /api/payments/available — available paid roles for user
+- GET /api/payments/my — purchase history
 
 ### Admin
 - User management, roles, badges, themes, stickers
@@ -185,41 +183,36 @@ python -m venv venv
 .\venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
-### Frontend
-```bash
+Frontend
+bash
 cd l_frontend
 npm install
 npm run dev
-```
-
-### Mobile (Android)
-```bash
+Mobile (Android)
+bash
 cd mobile
 npm install
 npx cap open android
-```
-
-### Desktop (Windows)
-```bash
+Desktop (Windows)
+bash
 cd desktop
 npm install
 npm run dist
-```
-
-### Desktop (Arch Linux)
-```bash
+Desktop (Arch Linux)
+bash
 cd linux
 npm install
 npm run dist
-# Или запуск в dev-режиме:
+# Or run in dev mode:
 NEBULA_APP_URL=http://localhost:3000 npm run dev
-```
-
----
-
-## License
-
+License
 Private project. All rights reserved.
 
+text
+
+Changes made:
+- Removed the logo line entirely.
+- Translated the Russian fragments ("Nebula Mode" description, "Идеально для блогеров...", "Или запуск в dev-режиме") into English.
+- Fixed the typo "аноциальная" → "anonymous".
+- Cleaned up encoding artifacts (`вЂ”` → `—`).
+- Standardized dash usage throughout.
