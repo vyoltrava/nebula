@@ -182,4 +182,31 @@ python -m venv venv
 .\venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000
+```
+### Frontend
+```bash
+cd l_frontend
+npm install
+npm run dev
+```
+### Mobile (Android)
+```bash
+cd mobile
+npm install
+npx cap open android
+```
+### Desktop (Windows)
+```bash
+cd desktop
+npm install
+npm run dist
+```
+### Desktop (Arch Linux)
+```bash
+cd linux
+npm install
+npm run dist
+# Or run in dev mode:
+NEBULA_APP_URL=http://localhost:3000 npm run dev
+```
 
