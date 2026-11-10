@@ -15,7 +15,7 @@ import Link from "next/link";
 import {
   Settings, LogOut, MessageCircle, ArrowLeft, Menu,
   Users, Bug, Headphones, Sparkles, Bookmark, ShieldCheck, Orbit,
-  Lock, X, Megaphone, Download,
+  Lock, X, Megaphone,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
@@ -301,7 +301,6 @@ export function NebulaSidebar() {
     { key: "bug", icon: Bug, label: t("nav.reportProblem"), badge: 0, run: () => setShowBugModal(true) },
     { key: "support", icon: Headphones, label: t("nav.support"), badge: 0, run: () => router.push("/support") },
     { key: "settings", icon: Settings, label: t("nav.settings"), badge: 0, run: () => router.push("/nebula-settings") },
-    { key: "download", icon: Download, label: t("download.download"), badge: 0, run: () => router.push("/download") },
     { key: "circle", icon: Sparkles, label: t("nav.circle"), badge: 0, run: () => setShowCircle(true) },
   ];
   const orbitItemsRef = useRef(orbitItems);
@@ -532,7 +531,6 @@ export function NebulaSidebar() {
     { href: "/messages", icon: MessageCircle, label: t("nav.messages"), badge: counts.chats, isCircle: false },
     { href: "#circle", icon: Sparkles, label: t("nav.circle"), badge: 0, isCircle: true },
     { href: "/nebula-settings", icon: Settings, label: t("nav.settings"), badge: 0, isCircle: false },
-    { href: "/download", icon: Download, label: t("download.download"), badge: 0, isCircle: false },
   ];
 
   return (

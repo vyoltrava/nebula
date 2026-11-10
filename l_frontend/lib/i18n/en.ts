@@ -76,7 +76,11 @@ export const en: Dictionary = {
     otherPlatforms: "All platforms",
     howToInstallWindows: "How to install on Windows",
     howToInstallLinux: "How to install on Linux",
-    howToInstallAndroid: "How to install on Android"
+    howToInstallAndroid: "How to install on Android",
+    formatCount: "{n} formats",
+    packageCount: "{n} packages",
+    webApp: "Web app",
+    pwaNotice: "Trelod is also available in your browser. Open the web app to get started."
   },
   lang: {
     label: "Language",

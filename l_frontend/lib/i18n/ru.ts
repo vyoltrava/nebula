@@ -1173,6 +1173,10 @@ channels: {
     otherPlatforms: "Все платформы",
     howToInstallWindows: "Как установить на Windows",
     howToInstallLinux: "Как установить на Linux",
-    howToInstallAndroid: "Как установить на Android"
+    howToInstallAndroid: "Как установить на Android",
+    formatCount: "{n} варианта",
+    packageCount: "{n} пакета",
+    webApp: "Веб-приложение",
+    pwaNotice: "Trelod также доступен в браузере. Откройте веб-приложение, чтобы начать."
   },
 };

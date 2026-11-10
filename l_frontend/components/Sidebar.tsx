@@ -8,7 +8,7 @@ import Link from "next/link";
 import {
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus,
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette,
-  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft, Download,
+  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft,
   ChevronRight, History, BookOpen, Headphones, Satellite, Crown
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
@@ -1221,7 +1221,6 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
     const outerItems: WheelItem[] = [
       { href: "/settings", icon: Settings, label: t("nav.settings") },
-      { href: "/download", icon: Download, label: t("download.download") },
       { href: "/rules", icon: Shield, label: t("nav.rules") },
       { href: "#bug", icon: Bug, label: t("nav.bugs") },
       { href: "/support", icon: Headphones, label: t("nav.support") },
@@ -1256,7 +1255,6 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     { href: "/bookmarks", icon: Bookmark,  label: t("nav.bookmarks") },
     { href: "/updates",    icon: Satellite,    label: t("nav.community") },  
     { href: "/rules",     icon: Shield,    label: t("nav.rules") },
-    { href: "/download", icon: Download, label: t("download.download") },
   ];
 
   useEffect(() => { refresh(); }, [pathname]);

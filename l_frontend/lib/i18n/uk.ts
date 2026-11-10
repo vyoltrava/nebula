@@ -1174,7 +1174,11 @@ channels: {
     otherPlatforms: "Всі платформи",
     howToInstallWindows: "Як установити на Windows",
     howToInstallLinux: "Як установити на Linux",
-    howToInstallAndroid: "Як установити на Android"
+    howToInstallAndroid: "Як установити на Android",
+    formatCount: "{n} формати",
+    packageCount: "{n} пакунки",
+    webApp: "Вебзастосунок",
+    pwaNotice: "Trelod також доступний у браузері. Відкрийте вебзастосунок, щоб почати."
   }
 };
 export type Dictionary = typeof uk;

@@ -1,12 +1,32 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
+import Link from "next/link";
+import {
+  Apple,
+  ArrowDown,
+  ArrowLeft,
+  ArrowUpRight,
+  Download,
+  Laptop,
+  Monitor,
+  Smartphone,
+  Terminal,
+} from "lucide-react";
+import { BrandIcon } from "@/components/BrandIcon";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
-import { Button } from "@/components/ui/Button";
-import { Download, ArrowDown } from "lucide-react";
 import type { MessageKey } from "@/lib/i18n";
 
 type Platform = "windows" | "linux" | "android" | "ios" | "macos" | "other";
+type DownloadablePlatform = Extract<Platform, "windows" | "linux" | "android">;
+
+interface Release {
+  platform: string;
+  filename: string;
+  size: string;
+  url: string;
+  external?: boolean;
+}
 
 const DETECTED_PLATFORM_KEYS: Record<Platform, MessageKey> = {
   windows: "download.detectedWindows",
@@ -17,14 +37,7 @@ const DETECTED_PLATFORM_KEYS: Record<Platform, MessageKey> = {
   other: "download.detectedOther",
 };
 
-interface Release {
-  platform: string;
-  filename: string;
-  size: string;
-  url: string;
-}
-
-const RELEASES: { [key: string]: Release[] } = {
+const RELEASES: Record<DownloadablePlatform, Release[]> = {
   windows: [
     {
       platform: "Windows",
@@ -35,28 +48,29 @@ const RELEASES: { [key: string]: Release[] } = {
   ],
   linux: [
     {
-      platform: "Linux (.AppImage)",
+      platform: "AppImage",
       filename: "trelod-1.0.0-x86_64.AppImage",
       size: "~55 MB",
       url: "/desktop/trelod-1.0.0-x86_64.AppImage",
     },
     {
-      platform: "Linux (.deb)",
+      platform: "Debian / Ubuntu",
       filename: "trelod-1.0.0.deb",
       size: "~55 MB",
       url: "/desktop/trelod-1.0.0.deb",
     },
     {
-      platform: "Linux (.rpm)",
+      platform: "Fedora / openSUSE",
       filename: "trelod-1.0.0.rpm",
       size: "~55 MB",
       url: "/desktop/trelod-1.0.0.rpm",
     },
     {
-      platform: "Linux (Arch)",
+      platform: "Arch Linux",
       filename: "makepkg -si",
-      size: "Build from AUR",
+      size: "AUR package",
       url: "https://aur.archlinux.org/packages/trelod-desktop",
+      external: true,
     },
   ],
   android: [
@@ -69,12 +83,19 @@ const RELEASES: { [key: string]: Release[] } = {
   ],
 };
 
+const PLATFORMS: { id: Platform; title: string; icon: typeof Monitor }[] = [
+  { id: "windows", title: "Windows", icon: Monitor },
+  { id: "linux", title: "Linux", icon: Terminal },
+  { id: "android", title: "Android", icon: Smartphone },
+  { id: "ios", title: "iPhone / iPad", icon: Apple },
+  { id: "macos", title: "macOS", icon: Laptop },
+];
+
 function detectPlatform(): Platform {
   if (typeof window === "undefined") return "other";
   const userAgent = navigator.userAgent || "";
   const platform = navigator.platform || "";
-  const maxTouchPoints = navigator.maxTouchPoints || 0;
-  const isiOS = /iPhone|iPad|iPod/.test(userAgent) || (platform === "MacIntel" && maxTouchPoints > 1);
+  const isiOS = /iPhone|iPad|iPod/.test(userAgent) || (platform === "MacIntel" && navigator.maxTouchPoints > 1);
   if (isiOS) return "ios";
   if (/android/i.test(userAgent)) return "android";
   if (/win32|windows/i.test(platform)) return "windows";
@@ -96,73 +117,180 @@ export default function DownloadPage() {
   );
   const [platformOverride, setPlatformOverride] = useState<Platform | null>(null);
   const platform = platformOverride ?? detectedPlatform;
-  const filtered = RELEASES[platform as keyof typeof RELEASES] || [];
+  const selectedReleasePlatform: DownloadablePlatform | null =
+    platform === "windows" || platform === "linux" || platform === "android" ? platform : null;
+  const releases = selectedReleasePlatform ? RELEASES[selectedReleasePlatform] : [];
+  const isPwaPlatform = platform === "ios" || platform === "macos" || platform === "other";
+  const hasDetectedPlatform = platformOverride === null && platform !== "other";
+
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-6 text-center">
-          <h1 className="text-3xl font-bold mb-2">{t("download.title")}</h1>
-          <p className="text-lg text-[#B9B8BD]">{t("download.subtitle")}</p>
-        </div>
-        {platform !== "other" ? (
-          <div className="mb-6 p-4 rounded-lg border border-line dark:border-white/15" style={{ backgroundColor: "#1E1E23" }}>
-            <p className="text-sm font-medium text-[#8b5cf6]">
-              {t("download.detected", { platform: t(DETECTED_PLATFORM_KEYS[platform]) })}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 mb-8">
-            <h2 className="text-sm font-medium mb-2">{t("download.otherPlatforms")}</h2>
-            {Object.values(RELEASES).flat().map((release) => (
-              <div key={release.platform} className="p-3 rounded-lg border border-line dark:border-white/10 hover:border-purple-500/30 transition-colors">
-                <div className="flex items-center gap-3 mb-2">
-                  <Download className="w-4 h-4" />
-                  <span className="font-medium">{release.platform}</span>
-                </div>
-                <div className="flex justify-between text-sm text-gray-400">
-                  <span>{release.filename}</span>
-                  <span>{release.size}</span>
-                </div>
-                <a href={release.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 transition-colors">
-                  {t("download.download")}
-                </a>
+    <main className="min-h-screen bg-paper text-gray-900 dark:bg-[#171717] dark:text-white">
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
+        <header className="mb-8 flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 transition-colors hover:text-gray-900 dark:text-white/60 dark:hover:text-white">
+            <ArrowLeft size={17} />
+            <span className="hidden sm:inline">{t("common.back")}</span>
+            <BrandIcon className="h-7 w-7" />
+            <span className="font-logo text-2xl text-[#3D1F6D] dark:text-[#8b5cf6]">trelod</span>
+          </Link>
+          <span className="inline-flex items-center gap-2 rounded-full border border-line bg-ivory px-3 py-1.5 text-xs font-semibold text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-white/60">
+            <Download size={14} className="text-[#8b5cf6]" />
+            {t("download.download")}
+          </span>
+        </header>
+
+        <section className="relative mb-8 overflow-hidden rounded-3xl border border-[#8b5cf6]/20 bg-ivory p-6 shadow-sm dark:border-white/10 dark:bg-[#1e1e23] sm:p-10">
+          <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-[#8b5cf6]/10 blur-3xl" />
+          <div className="relative grid items-center gap-8 md:grid-cols-[1fr_auto]">
+            <div>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#8b5cf6]/10 px-3 py-1.5 text-xs font-bold text-[#7040c0] dark:text-[#b69aff]">
+                <BrandIcon className="h-4 w-4" />
+                TRELOD DESKTOP & MOBILE
               </div>
+              <h1 className="mb-3 text-3xl font-black tracking-tight sm:text-5xl">{t("download.title")}</h1>
+              <p className="max-w-xl text-sm leading-6 text-gray-600 dark:text-white/55 sm:text-base">
+                {t("download.subtitle")}
+              </p>
+            </div>
+            <div className="hidden h-36 w-36 items-center justify-center rounded-[2rem] border border-[#8b5cf6]/15 bg-[#8b5cf6]/5 sm:flex">
+              <BrandIcon className="h-24 w-24" />
+            </div>
+          </div>
+        </section>
+
+        {hasDetectedPlatform && (
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#8b5cf6]/20 bg-[#8b5cf6]/[0.06] px-4 py-3 dark:bg-[#8b5cf6]/10">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {t("download.detected", { platform: t(DETECTED_PLATFORM_KEYS[platform]) })}
+            </div>
+            <button type="button" onClick={() => setPlatformOverride("other")} className="text-xs font-semibold text-[#7040c0] hover:underline dark:text-[#b69aff]">
+              {t("download.otherPlatforms")}
+            </button>
+          </div>
+        )}
+
+        {selectedReleasePlatform && (
+          <section className="mb-10">
+            <div className="mb-4 flex items-end justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold">{t(DETECTED_PLATFORM_KEYS[platform])}</h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-white/45">{t("download.subtitle")}</p>
+              </div>
+              <span className="rounded-full bg-gray-200/70 px-3 py-1 text-xs font-bold text-gray-600 dark:bg-white/5 dark:text-white/50">
+                {t("download.formatCount", { n: releases.length })}
+              </span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {releases.map((release, index) => {
+                const PlatformIcon = selectedReleasePlatform === "windows"
+                  ? Monitor
+                  : selectedReleasePlatform === "linux"
+                    ? Terminal
+                    : Smartphone;
+                return (
+                  <article key={release.filename} className={`group flex flex-col rounded-2xl border bg-ivory p-5 transition-all hover:-translate-y-0.5 hover:border-[#8b5cf6]/35 hover:shadow-lg hover:shadow-[#8b5cf6]/[0.06] dark:bg-[#1e1e23] ${index === 0 && selectedReleasePlatform !== "linux" ? "border-[#8b5cf6]/35" : "border-line dark:border-white/10"}`}>
+                    <div className="mb-5 flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-[#7040c0] dark:text-[#b69aff]">
+                          <PlatformIcon size={22} />
+                        </span>
+                        <div>
+                          <h3 className="font-bold">{release.platform}</h3>
+                          <p className="mt-0.5 text-xs text-gray-500 dark:text-white/45">{release.size}</p>
+                        </div>
+                      </div>
+                      {index === 0 && selectedReleasePlatform !== "linux" && (
+                        <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                          {t("download.install")}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mb-4 flex-1 break-all rounded-lg bg-gray-100 px-3 py-2 font-mono text-xs text-gray-600 dark:bg-white/[0.04] dark:text-white/55">
+                      {release.filename}
+                    </p>
+                    <a
+                      href={release.url}
+                      target={release.external ? "_blank" : undefined}
+                      rel={release.external ? "noopener noreferrer" : undefined}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#8b5cf6] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#7c3aed]"
+                    >
+                      {release.external ? <ArrowUpRight size={17} /> : <Download size={17} />}
+                      {release.external ? t("download.install") : t("download.download")}
+                    </a>
+                  </article>
+                );
+              })}
+            </div>
+            {platform === "linux" && (
+              <p className="mt-3 rounded-xl border border-line bg-ivory px-4 py-3 text-sm text-gray-600 dark:border-white/10 dark:bg-[#1e1e23] dark:text-white/55">
+                {t("download.archInstructions")}
+              </p>
+            )}
+          </section>
+        )}
+
+        {isPwaPlatform && (
+          <section className="mb-10 flex flex-col gap-5 rounded-2xl border border-line bg-ivory p-5 dark:border-white/10 dark:bg-[#1e1e23] sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="flex items-start gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-[#7040c0] dark:text-[#b69aff]">
+                {platform === "ios" ? <Apple size={24} /> : platform === "macos" ? <Laptop size={24} /> : <Monitor size={24} />}
+              </span>
+              <div>
+                <h2 className="font-bold">{platform === "macos" ? "macOS" : platform === "ios" ? "iPhone / iPad" : t("download.detectedOther")}</h2>
+                <p className="mt-1 text-sm leading-6 text-gray-600 dark:text-white/55">
+                  {platform === "ios" ? t("download.iosPwaNotice") : t("download.pwaNotice")}
+                </p>
+              </div>
+            </div>
+            <a href="https://trelod.app" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-[#8b5cf6]/30 px-4 py-2.5 text-sm font-bold text-[#7040c0] transition-colors hover:bg-[#8b5cf6]/10 dark:text-[#b69aff]">
+              <ArrowUpRight size={17} />
+              {t("download.iosPwaButton")}
+            </a>
+          </section>
+        )}
+
+        <section>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold">{t("download.otherPlatforms")}</h2>
+              <p className="mt-1 text-sm text-gray-500 dark:text-white/45">{t("download.subtitle")}</p>
+            </div>
+            {platformOverride === "other" && (
+              <button type="button" onClick={() => setPlatformOverride(null)} className="inline-flex items-center gap-1 text-xs font-semibold text-[#7040c0] hover:underline dark:text-[#b69aff]">
+                <ArrowDown size={14} className="rotate-180" />
+                {t(DETECTED_PLATFORM_KEYS[detectedPlatform])}
+              </button>
+            )}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {PLATFORMS.map(({ id, title, icon: PlatformIcon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setPlatformOverride(id)}
+                aria-pressed={platform === id}
+                className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${platform === id ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/[0.07] shadow-sm" : "border-line bg-ivory hover:border-[#8b5cf6]/30 dark:border-white/10 dark:bg-[#1e1e23]"}`}
+              >
+                <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${platform === id ? "bg-[#8b5cf6]/15 text-[#7040c0] dark:text-[#b69aff]" : "bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-white/55"}`}>
+                  <PlatformIcon size={22} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-bold">{title}</span>
+                  <span className="mt-0.5 block truncate text-xs text-gray-500 dark:text-white/45">
+                    {id === "linux"
+                      ? t("download.packageCount", { n: RELEASES.linux.length })
+                      : id === "ios" || id === "macos"
+                        ? t("download.webApp")
+                        : RELEASES[id as DownloadablePlatform][0]?.size}
+                  </span>
+                </span>
+                <ArrowUpRight size={16} className="shrink-0 text-gray-400 dark:text-white/30" />
+              </button>
             ))}
           </div>
-        )}
-        {platform === "ios" || platform === "macos" || platform === "other" ? (
-          <div className="mb-6 p-4 rounded-lg border border-line dark:border-white/15" style={{ backgroundColor: "#1E1E23" }}>
-            <p className="text-base">{t("download.iosPwaNotice")}</p>
-            <div className="mt-4 text-center"><Button onClick={() => window.open("https://trelod.app", "_blank")} variant="secondary" className="w-auto px-4">{t("download.iosPwaButton")}</Button></div>
-          </div>
-        ) : platform === "android" ? (
-          <div className="mb-6 p-4 rounded-lg border border-line dark:border-white/15" style={{ backgroundColor: "#1E1E23" }}>
-            <h2 className="text-base font-medium mb-3">{t("download.detectedAndroid")}</h2>
-            <p>{t("download.download", { version: "1.0.0", size: "~60 MB" })}</p>
-            <a href="/android/trelod.apk" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 transition-colors w-full">{t("download.download")}</a>
-            <p className="mt-3 text-sm text-gray-400">Auto-updates from update.json</p>
-          </div>
-        ) : platform === "linux" ? (
-          <div className="space-y-4"><h2 className="text-base font-medium">{t("download.detectedLinux")}</h2>{filtered.map((release) => (
-            <div key={release.platform} className="p-3 rounded-lg border border-line dark:border-white/10 hover:border-purple-500/30 transition-colors">
-              <div className="flex items-center gap-3 mb-2"><Download className="w-4 h-4" /><span className="font-medium">{release.platform}</span></div>
-              <div className="flex justify-between text-sm text-gray-400"><span>{release.filename}</span><span>{release.size}</span></div>
-              <a href={release.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 transition-colors w-full">{t("download.download")}</a>
-            </div>
-          ))}
-          {t("download.archInstructions")}
-          <a href="https://aur.archlinux.org/packages/trelod-desktop" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 transition-colors w-full">{t("download.otherPlatforms")}</a>
-        </div>) : platform === "windows" ? (
-          <div className="mb-6 p-4 rounded-lg border border-line dark:border-white/15" style={{ backgroundColor: "#1E1E23" }}>
-            <h2 className="text-base font-medium">{t("download.detectedWindows")}</h2>
-            <p>{t("download.download", { version: "1.0.0", size: "~50 MB" })}</p>
-            <a href="/desktop/trelod-Setup-1.0.0.exe" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 transition-colors w-full">{t("download.download")}</a>
-          </div>
-        ) : null}
-        {platform !== "other" && (
-          <div className="mt-6 text-center"><button type="button" onClick={() => setPlatformOverride("other")} className="inline-flex items-center gap-2 text-purple-400 hover:text-white transition-colors text-sm">{t("download.otherPlatforms")}<ArrowDown className="w-3 h-3" /></button></div>
-        )}
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
