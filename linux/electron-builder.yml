@@ -1,6 +1,6 @@
 # electron-builder.yml — Linux сборка (deb, appimage)
 #   npm run dist   → release/trelod-<version>.AppImage / trelod-<version>.deb
-#   npm run release <version> → копирует AppImage/deb в публичную папку + обновляет update.json
+#   npm run release -- <version> → копирует AppImage/deb в l_frontend/public/desktop/
 
 appId: trelod.linux
 productName: trelod

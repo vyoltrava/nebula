@@ -10,7 +10,7 @@
     "dev": "electron .",
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder --linux deb",
+    "dist": "electron-builder --linux deb AppImage",
     "release": "node scripts/release-linux.mjs"
   },
   "devDependencies": {

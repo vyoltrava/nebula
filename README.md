@@ -67,13 +67,9 @@
 Perfect for bloggers who want direct content with their audience, and for communities that need secure communication.
 
 ### Trelod Desktop (Linux)
-- Electron app named `trelod` with NSIS-style installer
-- Auto-updates from update.json hosted with the frontend
-- Silent background updates
-- Auto-updates from update.json hosted with the frontend
-- Available as `.AppImage`, `.deb`, and `.rpm` packages
-- Install via `makepkg -si` or run `trelod` command directly
-- Installed to `/opt/trelod` with launcher script `/usr/bin/trelod`
+- Electron app named `trelod`, distributed as `.AppImage` and `.deb`
+- Installers are copied into `l_frontend/public/desktop/` and served from this repository
+- The AppImage is the recommended option for Arch Linux and other distributions
 
 ### Monetization
 - Payment module for selling roles and badges
@@ -202,12 +198,12 @@ cd desktop
 npm install
 npm run dist
 ```
-### Desktop (Arch Linux)
+### Desktop (Linux)
 ```bash
 cd linux
 npm install
 npm run dist
+npm run release -- 1.0.0
 # Or run in dev mode:
 NEBULA_APP_URL=http://localhost:3000 npm run dev
 ```
-

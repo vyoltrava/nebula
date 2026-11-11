@@ -83,7 +83,7 @@ export const en: Dictionary = {
     size: "Size",
     iosPwaNotice: "On iPhone/iPad you can use Trelod as a PWA — open the site in Safari and tap 'Add to Home Screen'.",
     iosPwaButton: "Open as PWA",
-    archInstructions: "For Arch Linux users, you can also install via makepkg -si:",
+    archInstructions: "On Arch Linux, download the AppImage above. It is hosted in this repository and does not require AUR.",
     otherPlatforms: "All platforms",
     howToInstallWindows: "How to install on Windows",
     howToInstallLinux: "How to install on Linux",

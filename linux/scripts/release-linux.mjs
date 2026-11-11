@@ -1,30 +1,35 @@
 #!/usr/bin/env node
-/**
- * Release script for Linux desktop
- * Usage: node scripts/release-linux.mjs <version>
- */
 
-const fs = require('fs');
-const path = require('path');
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const version = process.argv[3];
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const RELEASE_DIR = join(ROOT, "release");
+const PUBLIC_DESKTOP_DIR = resolve(ROOT, "..", "l_frontend", "public", "desktop");
 
-if (!version) {
-  console.error('Usage: node scripts/release-linux.mjs <version>');
+const version = process.argv[2];
+if (!version || !/^\d+(\.\d+)*$/.test(version)) {
+  console.error("Usage: npm run release -- <version>");
   process.exit(1);
 }
 
-// Copy built artifacts to public folder for updates
-const publicDir = path.resolve(__dirname, '..', '..', 'l_frontend', 'public', 'desktop');
-const releaseDir = path.resolve(__dirname, '..', '..', 'linux', 'release');
-
-if (!fs.existsSync(publicDir)) {
-  fs.mkdirSync(publicDir, { recursive: true });
+const artifacts = [
+  `trelod-${version}.AppImage`,
+  `trelod-${version}.deb`,
+];
+const missing = artifacts.filter((filename) => !existsSync(join(RELEASE_DIR, filename)));
+if (missing.length > 0) {
+  console.error(`Linux build artifacts are missing from ${RELEASE_DIR}:`);
+  for (const filename of missing) console.error(`  - ${filename}`);
+  console.error("Build them first with: npm run dist");
+  process.exit(1);
 }
 
-// List released files and update update.json
-const files = fs.readdirSync(releaseDir).filter(f => f.includes(version));
-console.log(`Released files for version ${version}:`, files);
+mkdirSync(PUBLIC_DESKTOP_DIR, { recursive: true });
+for (const filename of artifacts) {
+  copyFileSync(join(RELEASE_DIR, filename), join(PUBLIC_DESKTOP_DIR, filename));
+}
 
-// Here we would typically update update.json, but for simplicity:
-console.log('Linux release completed for version:', version);
+console.log(`Linux ${version} installers copied to ${PUBLIC_DESKTOP_DIR}.`);
+console.log("Commit and deploy the repository to publish the downloads.");

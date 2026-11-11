@@ -25,7 +25,6 @@ interface Release {
   filename: string;
   size: string;
   url: string;
-  external?: boolean;
 }
 
 const DETECTED_PLATFORM_KEYS: Record<Platform, MessageKey> = {
@@ -49,9 +48,9 @@ const RELEASES: Record<DownloadablePlatform, Release[]> = {
   linux: [
     {
       platform: "AppImage",
-      filename: "trelod-1.0.0-x86_64.AppImage",
+      filename: "trelod-1.0.0.AppImage",
       size: "~55 MB",
-      url: "/desktop/trelod-1.0.0-x86_64.AppImage",
+      url: "/desktop/trelod-1.0.0.AppImage",
     },
     {
       platform: "Debian / Ubuntu",
@@ -59,26 +58,13 @@ const RELEASES: Record<DownloadablePlatform, Release[]> = {
       size: "~55 MB",
       url: "/desktop/trelod-1.0.0.deb",
     },
-    {
-      platform: "Fedora / openSUSE",
-      filename: "trelod-1.0.0.rpm",
-      size: "~55 MB",
-      url: "/desktop/trelod-1.0.0.rpm",
-    },
-    {
-      platform: "Arch Linux",
-      filename: "makepkg -si",
-      size: "AUR package",
-      url: "https://aur.archlinux.org/packages/trelod-desktop",
-      external: true,
-    },
   ],
   android: [
     {
       platform: "Android",
-      filename: "trelod.apk",
+      filename: "app-release.apk",
       size: "~60 MB",
-      url: "/android/trelod.apk",
+      url: "/apk/app-release.apk",
     },
   ],
 };
@@ -211,12 +197,10 @@ export default function DownloadPage() {
                     </p>
                     <a
                       href={release.url}
-                      target={release.external ? "_blank" : undefined}
-                      rel={release.external ? "noopener noreferrer" : undefined}
                       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#8b5cf6] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#7c3aed]"
                     >
-                      {release.external ? <ArrowUpRight size={17} /> : <Download size={17} />}
-                      {release.external ? t("download.install") : t("download.download")}
+                      <Download size={17} />
+                      {t("download.download")}
                     </a>
                   </article>
                 );
@@ -243,10 +227,10 @@ export default function DownloadPage() {
                 </p>
               </div>
             </div>
-            <a href="https://trelod.app" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-[#8b5cf6]/30 px-4 py-2.5 text-sm font-bold text-[#7040c0] transition-colors hover:bg-[#8b5cf6]/10 dark:text-[#b69aff]">
+            <Link href="/" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-[#8b5cf6]/30 px-4 py-2.5 text-sm font-bold text-[#7040c0] transition-colors hover:bg-[#8b5cf6]/10 dark:text-[#b69aff]">
               <ArrowUpRight size={17} />
               {t("download.iosPwaButton")}
-            </a>
+            </Link>
           </section>
         )}
 

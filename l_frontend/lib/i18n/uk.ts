@@ -1214,7 +1214,7 @@ channels: {
     size: "Розмір",
     iosPwaNotice: "На iPhone/iPad можна використовувати Trelod як PWA — відкрийте сайт у Safari та натисніть 'Додати до головного екрана'.",
     iosPwaButton: "Відкрити як PWA",
-    archInstructions: "Для користувачів Arch Linux також можна встановити через makepkg -si:",
+    archInstructions: "Для Arch Linux завантажте AppImage вище — файл розміщений у репозиторії та не потребує AUR.",
     otherPlatforms: "Всі платформи",
     howToInstallWindows: "Як установити на Windows",
     howToInstallLinux: "Як установити на Linux",
