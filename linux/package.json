@@ -1,6 +1,6 @@
 {
   "name": "trelod-linux",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Trelod — desktop application for Arch Linux and other distributions",
   "main": "main/index.js",
   "author": {
