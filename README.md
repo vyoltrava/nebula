@@ -68,8 +68,8 @@ Perfect for bloggers who want direct content with their audience, and for commun
 
 ### Trelod Desktop (Linux)
 - Electron app named `trelod`, distributed as `.AppImage` and `.deb`
-- The latest published AppImage is served from the GitHub Release at a stable download URL
-- On the download page, Linux users get separate terminal commands to download and enable the AppImage, then create a Trelod shortcut in the applications menu; no local compilation is needed
+- The latest published AppImage and Debian package are served from the GitHub Release at stable download URLs
+- On the download page, Linux users get commands to create a FUSE-independent AppImage shortcut, plus a `.deb` alternative for Debian/Ubuntu-based distributions; no local compilation is needed
 
 ### Monetization
 - Payment module for selling roles and badges

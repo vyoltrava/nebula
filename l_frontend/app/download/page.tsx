@@ -22,6 +22,7 @@ type DownloadablePlatform = Extract<Platform, "windows" | "linux" | "android">;
 
 interface Release {
   platform: string;
+  platformKey?: MessageKey;
   filename: string;
   size: string;
   url: string;
@@ -51,6 +52,13 @@ const RELEASES: Record<DownloadablePlatform, Release[]> = {
       filename: "trelod.AppImage",
       size: "~103 MB",
       url: "https://github.com/vyoltrava/nebula/releases/latest/download/trelod.AppImage",
+    },
+    {
+      platform: "Debian/Ubuntu",
+      platformKey: "download.linuxDebPackage",
+      filename: "trelod.deb",
+      size: "~72 MB",
+      url: "https://github.com/vyoltrava/nebula/releases/latest/download/trelod.deb",
     },
   ],
   android: [
@@ -117,13 +125,18 @@ export default function DownloadPage() {
     },
     {
       title: t("download.linuxStepShortcut"),
-      command: `mkdir -p "$HOME/.local/share/applications"
+      command: `cat > "$HOME/Applications/trelod-launcher" <<'EOF'
+#!/bin/sh
+APPIMAGE_EXTRACT_AND_RUN=1 exec "$HOME/Applications/trelod.AppImage" "$@"
+EOF
+chmod +x "$HOME/Applications/trelod-launcher"
+mkdir -p "$HOME/.local/share/applications"
 cat > "$HOME/.local/share/applications/trelod.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Trelod
 Comment=Anonymous social platform and encrypted messenger
-Exec="$HOME/Applications/trelod.AppImage"
+Exec="$HOME/Applications/trelod-launcher"
 Icon=$HOME/.local/share/icons/hicolor/512x512/apps/trelod.png
 Terminal=false
 Categories=Network;InstantMessaging;
@@ -204,7 +217,7 @@ EOF`,
                           <PlatformIcon size={22} />
                         </span>
                         <div>
-                          <h3 className="font-bold">{release.platform}</h3>
+                          <h3 className="font-bold">{release.platformKey ? t(release.platformKey) : release.platform}</h3>
                           <p className="mt-0.5 text-xs text-gray-500 dark:text-white/45">{release.size}</p>
                         </div>
                       </div>
@@ -252,6 +265,17 @@ EOF`,
                 <p className="text-sm text-gray-500 dark:text-white/45">
                   {t("download.linuxShortcutHint")}
                 </p>
+                <div className="space-y-2 rounded-xl border border-[#8b5cf6]/20 bg-[#8b5cf6]/[0.04] px-4 py-3 dark:bg-[#8b5cf6]/[0.08]">
+                  <p className="text-sm text-gray-600 dark:text-white/65">
+                    {t("download.linuxDebInstructions")}
+                  </p>
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-white/70">
+                    {t("download.linuxDebTerminalCommand")}
+                  </h3>
+                  <code className="block overflow-x-auto whitespace-pre rounded-lg bg-gray-100 px-3 py-2 font-mono text-xs text-gray-700 dark:bg-white/[0.04] dark:text-white/70">
+                    {`curl -fL '${RELEASES.linux[1].url}' -o /tmp/trelod.deb &&\nsudo apt install /tmp/trelod.deb`}
+                  </code>
+                </div>
               </div>
             )}
           </section>
