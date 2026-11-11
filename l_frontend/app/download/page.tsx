@@ -102,6 +102,34 @@ export default function DownloadPage() {
   const releases = selectedReleasePlatform ? RELEASES[selectedReleasePlatform] : [];
   const isPwaPlatform = platform === "ios" || platform === "macos" || platform === "other";
   const hasDetectedPlatform = platformOverride === null && platform !== "other";
+  const linuxInstallCommands = [
+    {
+      title: t("download.linuxStepFolder"),
+      command: 'mkdir -p "$HOME/Applications"',
+    },
+    {
+      title: t("download.linuxStepDownload"),
+      command: `curl -fL '${RELEASES.linux[0].url}' -o "$HOME/Applications/trelod.AppImage"`,
+    },
+    {
+      title: t("download.linuxStepPermission"),
+      command: 'chmod +x "$HOME/Applications/trelod.AppImage"',
+    },
+    {
+      title: t("download.linuxStepShortcut"),
+      command: `mkdir -p "$HOME/.local/share/applications"
+cat > "$HOME/.local/share/applications/trelod.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Trelod
+Comment=Anonymous social platform and encrypted messenger
+Exec="$HOME/Applications/trelod.AppImage"
+Icon=applications-internet
+Terminal=false
+Categories=Network;InstantMessaging;
+EOF`,
+    },
+  ];
 
   return (
     <main className="min-h-screen bg-paper text-gray-900 dark:bg-[#171717] dark:text-white">
@@ -201,18 +229,29 @@ export default function DownloadPage() {
               })}
             </div>
             {platform === "linux" && (
-              <div className="mt-3 space-y-3">
+              <div className="mt-4 space-y-4">
                 <p className="rounded-xl border border-line bg-ivory px-4 py-3 text-sm text-gray-600 dark:border-white/10 dark:bg-[#1e1e23] dark:text-white/55">
-                  {t("download.archInstructions")}
+                  {t("download.linuxInstructions")}
                 </p>
-                <div className="rounded-xl border border-line bg-ivory px-4 py-3 dark:border-white/10 dark:bg-[#1e1e23]">
-                  <p className="mb-2 text-sm font-semibold text-gray-700 dark:text-white/70">
-                    {t("download.linuxTerminalCommand")}
-                  </p>
-                  <code className="block overflow-x-auto whitespace-nowrap rounded-lg bg-gray-100 px-3 py-2 font-mono text-xs text-gray-700 dark:bg-white/[0.04] dark:text-white/70">
-                    {`curl -fL '${RELEASES.linux[0].url}' -o trelod.AppImage && chmod +x trelod.AppImage && ./trelod.AppImage`}
-                  </code>
-                </div>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-white/70">
+                  {t("download.linuxTerminalCommand")}
+                </h3>
+                <ol className="space-y-3">
+                  {linuxInstallCommands.map(({ title, command }, index) => (
+                    <li key={title} className="rounded-xl border border-line bg-ivory px-4 py-3 dark:border-white/10 dark:bg-[#1e1e23]">
+                      <p className="mb-2 text-sm font-medium text-gray-700 dark:text-white/70">
+                        <span className="mr-2 text-[#7040c0] dark:text-[#b69aff]">{index + 1}.</span>
+                        {title}
+                      </p>
+                      <code className="block overflow-x-auto whitespace-pre rounded-lg bg-gray-100 px-3 py-2 font-mono text-xs text-gray-700 dark:bg-white/[0.04] dark:text-white/70">
+                        {command}
+                      </code>
+                    </li>
+                  ))}
+                </ol>
+                <p className="text-sm text-gray-500 dark:text-white/45">
+                  {t("download.linuxShortcutHint")}
+                </p>
               </div>
             )}
           </section>
