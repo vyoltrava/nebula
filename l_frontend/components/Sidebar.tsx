@@ -29,7 +29,7 @@ import { useNebulaMode } from "@/lib/useNebula";
 import type { MessageKey } from "@/lib/i18n";
 import { BrandIcon } from "@/components/BrandIcon"; 
 import { CommunityTabs } from "@/components/CommunityTabs";
-import { getNotifsCache, setNotifsCache, invalidateNotifsCache } from "@/lib/notifsCache";
+import { getNotifsCache, createNotifsCacheWriter, updateNotifsCache } from "@/lib/notifsCache";
 
 
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
@@ -1260,9 +1260,9 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   useEffect(() => { refresh(); }, [pathname]);
 
     useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    const controller = new AbortController();
+      const token = getToken();
+      if (!token) return;
+      const controller = new AbortController();
     const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
     if (!apiUrl) return;
     // 🔄 apiFetch: при 401 сам тихо обновит access-токен через refresh-cookie
@@ -1324,6 +1324,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     setShowNotifs(true); // открываем модалку сразу, данные грузятся в фоне
     const token = getToken();
     if (!token) return;
+    const writeCache = createNotifsCacheWriter();
     // Мгновенно показываем закешированный список, если он свежий
     const cached = getNotifsCache();
     if (cached) {
@@ -1342,7 +1343,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       .then((data) => {
         if (Array.isArray(data)) {
           setNotifs(data);
-          setNotifsCache(data);
+          writeCache(data);
         }
       })
       .catch(() => {})
@@ -1355,23 +1356,42 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   async function markRead(id: number) {
     const token = getToken();
     if (!token) return;
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${id}/read`, {
+    setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    updateNotifsCache((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${id}/read`, {
       method: "POST", headers: { Authorization: `Bearer ${token}` },
     });
+    if (!res.ok) throw new Error(`Failed to mark notification read (${res.status})`);
     setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    invalidateNotifsCache();
+    updateNotifsCache((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     refresh();
+    } catch (error) {
+      console.error("Failed to mark notification read:", error);
+      setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, read: false } : n)));
+      updateNotifsCache((prev) => prev.map((n) => (n.id === id ? { ...n, read: false } : n)));
+    }
   }
 
   async function markAllRead() {
     const token = getToken();
     if (!token) return;
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/read-all`, {
+    const unreadIds = new Set(notifs.filter((n) => !n.read).map((n) => n.id));
+    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+    updateNotifsCache((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/read-all`, {
       method: "POST", headers: { Authorization: `Bearer ${token}` },
     });
+    if (!res.ok) throw new Error(`Failed to mark notifications read (${res.status})`);
     setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
-    invalidateNotifsCache();
+    updateNotifsCache((prev) => prev.map((n) => ({ ...n, read: true })));
     refresh();
+    } catch (error) {
+      console.error("Failed to mark notifications read:", error);
+      setNotifs((prev) => prev.map((n) => unreadIds.has(n.id) ? { ...n, read: false } : n));
+      updateNotifsCache((prev) => prev.map((n) => unreadIds.has(n.id) ? { ...n, read: false } : n));
+    }
   }
 
   function getNotifLink(n: any): string {

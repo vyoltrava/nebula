@@ -3,12 +3,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getToken } from "@/lib/auth";
+import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { NotificationsSkeleton } from "@/components/Skeletons";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import type { MessageKey } from "@/lib/i18n";
-import { getNotifsCache, setNotifsCache, invalidateNotifsCache } from "@/lib/notifsCache";
+import { getNotifsCache, createNotifsCacheWriter, updateNotifsCache } from "@/lib/notifsCache";
 
 import { 
   Heart, MessageCircle, UserPlus, AtSign, MessageSquare, 
@@ -34,6 +35,7 @@ export default function NotificationsPage() {
   const [markingAll, setMarkingAll] = useState(false);
   const router = useRouter();
   const { t, locale } = useI18n();
+  const { refresh } = useUnreadCounts();
 
   useEffect(() => {
     const token = getToken();
@@ -41,6 +43,7 @@ export default function NotificationsPage() {
       router.push("/login");
       return;
     }
+    const writeCache = createNotifsCacheWriter();
 
     const cached = getNotifsCache();
     if (cached) {
@@ -54,7 +57,7 @@ export default function NotificationsPage() {
         .then((data) => {
           if (Array.isArray(data)) {
             setNotifs(data);
-            setNotifsCache(data);
+            writeCache(data);
           }
         })
         .catch(() => {});
@@ -68,7 +71,7 @@ export default function NotificationsPage() {
       .then((data) => {
         if (Array.isArray(data)) {
           setNotifs(data);
-          setNotifsCache(data);
+          writeCache(data);
         }
         setLoading(false);
       })
@@ -78,17 +81,26 @@ export default function NotificationsPage() {
   async function markRead(id: number) {
     const token = getToken();
     if (!token) return;
+    const notification = notifs.find((item) => item.id === id);
+    if (!notification || notification.read) return;
+
+    setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    updateNotifsCache((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${id}/read`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${id}/read`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) throw new Error(`Failed to mark notification read (${res.status})`);
       setNotifs((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
-      invalidateNotifsCache();
+      updateNotifsCache((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      refresh();
     } catch (e) {
       console.error("Ошибка отметки:", e);
+      setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, read: false } : n)));
+      updateNotifsCache((prev) => prev.map((n) => (n.id === id ? { ...n, read: false } : n)));
     }
   }
 
@@ -101,7 +113,8 @@ export default function NotificationsPage() {
     
     // Мгновенно обновляем UI
     setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
-    invalidateNotifsCache();
+    updateNotifsCache((prev) => prev.map((n) => ({ ...n, read: true })));
+    refresh();
     
     // Параллельно отправляем на сервер
     await Promise.allSettled(

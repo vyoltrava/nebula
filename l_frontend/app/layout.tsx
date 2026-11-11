@@ -28,6 +28,7 @@ import { IosThemeProvider } from "@/themes/ios";
 import "@/themes/ios/styles/index.css";
 import "./globals.css";
 import OrbitOnboardingGate from "@/components/OrbitOnboardingGate";
+import { TransientCacheReset } from "@/components/TransientCacheReset";
 
 
 const jersey = Jersey_25({ weight: "400", subsets: ["latin"], variable: "--font-jersey" });
@@ -167,6 +168,7 @@ export default function RootLayout({
         <NotificationPermissionPrompt />
         <WebSocketProvider>
             <UnreadCountsProvider>
+              <TransientCacheReset />
               <PermissionGate />
               {children}
             </UnreadCountsProvider>

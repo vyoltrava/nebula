@@ -15,7 +15,40 @@ import { useI18n } from "@/lib/i18n/LanguageProvider";
 
 const MAX_RECORD_SECONDS = 180;
 
-export function CreatePost() {
+type PendingPostPreview = {
+  text: string;
+  mediaUrl: string | null;
+  mediaType: string | null;
+};
+
+export type CreatedPost = {
+  id: number;
+  author_id: number;
+  author: string;
+  handle: string;
+  author_avatar?: string | null;
+  author_is_admin?: boolean;
+  author_is_moderator?: boolean;
+  author_is_banned?: boolean;
+  author_role?: { name: string; color: string } | null;
+  text: string;
+  media_url: string | null;
+  media_type: string | null;
+  likes_count: number;
+  liked_by_me?: boolean;
+  replies_count: number;
+  created_at: string;
+  views_count?: number;
+  repost_of_id?: number | null;
+};
+
+export function CreatePost({
+  onPendingPostChange,
+  onPostCreated,
+}: {
+  onPendingPostChange?: (post: PendingPostPreview | null) => void;
+  onPostCreated?: (post: CreatedPost) => void;
+} = {}) {
   const [text, setText, clearDraft] = useDraft("draft_create_post", "");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -33,6 +66,7 @@ export function CreatePost() {
   const [stickerPacks, setStickerPacks] = useState<any[]>([]);
   const [activePackTab, setActivePackTab] = useState<number>(0);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   
   const fileRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<RichEditorHandle>(null);
@@ -216,6 +250,7 @@ export function CreatePost() {
   };
 
   async function submit() {
+    if (submitting) return;
     setError("");
     const token = getToken();
     if (!token) {
@@ -231,6 +266,19 @@ export function CreatePost() {
     form.append("text", text);
     if (file) form.append("file", file);
 
+    onPendingPostChange?.({
+      text: text.trim(),
+      mediaUrl: preview,
+      mediaType: file?.type.startsWith("video/")
+        ? "video"
+        : file?.type.startsWith("audio/")
+          ? "audio"
+          : file
+            ? "image"
+            : null,
+    });
+    setSubmitting(true);
+    try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
@@ -251,11 +299,20 @@ export function CreatePost() {
       return;
     }
 
+    const createdPost: CreatedPost = await res.json();
+    onPostCreated?.(createdPost);
     setText("");
     clearDraft();
     onFile(null);
     if (fileRef.current) fileRef.current.value = "";
     triggerFeedRefresh();
+    } catch (err) {
+      console.error("Failed to publish post:", err);
+      setError(t("common.networkError"));
+    } finally {
+      onPendingPostChange?.(null);
+      setSubmitting(false);
+    }
   }
 
   if (!logged) {
@@ -457,7 +514,7 @@ export function CreatePost() {
     </div>
     <button
       onClick={submit}
-      disabled={!text.trim() && !file}
+      disabled={submitting || (!text.trim() && !file)}
       className="bg-[#8b5cf6] text-white font-medium rounded-lg px-3.5 py-1.5 text-sm sm:px-5 sm:py-2 sm:text-base transition-all hover:bg-[#7c3aed] disabled:opacity-40 disabled:cursor-not-allowed"
     >
       {t("compose.publish")}

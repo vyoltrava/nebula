@@ -4,7 +4,7 @@ import { getToken } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
 import Link from "next/link";
 import {
-  Megaphone, Flame, Sparkles, Wrench, X, Plus, Trash2, Clock, ArrowLeft,
+  Megaphone, Flame, Sparkles, Wrench, X, Plus, Trash2, Clock, ArrowLeft, LoaderCircle,
   CheckCheck, ChevronDown, MessageSquare
 } from "lucide-react";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
@@ -168,6 +168,20 @@ export default function UpdatesPage() {
     form.append("content", content);
     form.append("importance", importance);
 
+    const pendingId = -Date.now();
+    const pendingUpdate = {
+      id: pendingId,
+      title,
+      content,
+      importance,
+      created_at: new Date().toISOString(),
+      is_read: true,
+      is_pending: true,
+      author: me,
+    };
+    setUpdates((prev) => [pendingUpdate, ...prev]);
+    setReadIds((prev) => new Set(prev).add(pendingId));
+
     try {
       const res = await fetch(`${API_URL}/api/updates`, {
         method: "POST",
@@ -177,15 +191,37 @@ export default function UpdatesPage() {
       if (!res.ok) {
         const d = await res.json().catch(() => null);
         setError(d?.detail ?? t("updates.createError"));
+        setUpdates((prev) => prev.filter((update) => update.id !== pendingId));
+        setReadIds((prev) => {
+          const next = new Set(prev);
+          next.delete(pendingId);
+          return next;
+        });
         setSaving(false);
         return;
       }
+      const created = await res.json();
+      setUpdates((prev) => prev.map((update) =>
+        update.id === pendingId ? { ...update, id: created.id, is_pending: false } : update
+      ));
+      setReadIds((prev) => {
+        const next = new Set(prev);
+        next.delete(pendingId);
+        next.add(created.id);
+        return next;
+      });
       setTitle("");
       setContent("");
       setImportance("minor");
       setShowForm(false);
       load();
     } catch {
+      setUpdates((prev) => prev.filter((update) => update.id !== pendingId));
+      setReadIds((prev) => {
+        const next = new Set(prev);
+        next.delete(pendingId);
+        return next;
+      });
       setError(t("common.networkError"));
     } finally {
       setSaving(false);
@@ -285,7 +321,7 @@ export default function UpdatesPage() {
                     read
                       ? "bg-gray-100 dark:bg-white/5 border-line dark:border-white/10 hover:bg-white/[0.07]"
                       : "bg-[#8b5cf6]/[0.03] border-[#8b5cf6]/20 hover:bg-[#8b5cf6]/[0.06]"
-                  }`}
+                  } ${u.is_pending ? "opacity-70" : ""}`}
                   style={isMajor && !read ? { boxShadow: cfg.glow } : undefined}
                 >
                   {/* Полоса непрочитанного */}
@@ -304,6 +340,7 @@ export default function UpdatesPage() {
                           {t(cfg.labelKey)}
                         </span>
                         <span className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-white/40">
+                          {u.is_pending && <LoaderCircle size={11} className="animate-spin text-[#8b5cf6]" aria-label="Publishing update" />}
                           <Clock size={11} />
                           {new Date(u.created_at).toLocaleString(locale === "en" ? "en-US" : "ru-RU", {
                             day: "2-digit", month: "long", year: "numeric",

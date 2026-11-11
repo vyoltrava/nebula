@@ -9,6 +9,7 @@ import { getToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
+import { LoaderCircle } from "lucide-react";
 
 export default function HomePage() {
   const { t } = useI18n();
@@ -17,6 +18,11 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [nextCursor, setNextCursor] = useState<number | null>(null);
+  const [pendingPost, setPendingPost] = useState<{
+    text: string;
+    mediaUrl: string | null;
+    mediaType: string | null;
+  } | null>(null);
   
   const mainRef = useRef<HTMLElement>(null);
   const isLoadingRef = useRef(false);
@@ -128,7 +134,34 @@ export default function HomePage() {
           </button>
         </div>
 
-        {activeTab === "all" && <CreatePost />}
+        {activeTab === "all" && (
+          <CreatePost
+            onPendingPostChange={setPendingPost}
+            onPostCreated={(post) => {
+              setPosts((prev) => prev.some((item) => item.id === post.id) ? prev : [post, ...prev]);
+            }}
+          />
+        )}
+
+        {pendingPost && (
+          <article className="p-4 border-b border-line dark:border-white/10 opacity-80">
+            <div className="flex items-start gap-3">
+              <LoaderCircle size={18} className="mt-1 shrink-0 animate-spin text-[#8b5cf6]" aria-label="Sending post" />
+              <div className="min-w-0 flex-1">
+                {pendingPost.text && <p className="whitespace-pre-wrap break-words text-gray-900 dark:text-white">{pendingPost.text}</p>}
+                {pendingPost.mediaUrl && pendingPost.mediaType === "image" && (
+                  <img src={pendingPost.mediaUrl} alt="" className="mt-2 max-h-72 rounded-xl object-contain" />
+                )}
+                {pendingPost.mediaUrl && pendingPost.mediaType === "video" && (
+                  <video src={pendingPost.mediaUrl} controls className="mt-2 max-h-72 rounded-xl" />
+                )}
+                {pendingPost.mediaUrl && pendingPost.mediaType === "audio" && (
+                  <audio src={pendingPost.mediaUrl} controls className="mt-2 w-full" />
+                )}
+              </div>
+            </div>
+          </article>
+        )}
 
         {loading && posts.length === 0 ? (
           <>
