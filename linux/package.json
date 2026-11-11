@@ -3,7 +3,11 @@
   "version": "1.0.1",
   "description": "Trelod — desktop application for Arch Linux and other distributions",
   "main": "main/index.js",
-  "author": "trelod",
+  "author": {
+    "name": "Trelod",
+    "email": "contact@nebula.app"
+  },
+  "homepage": "https://trelod.app",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {

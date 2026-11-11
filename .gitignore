@@ -5,6 +5,7 @@ __pycache__/
 uploads/
 node_modules/
 .next/
+linux/release/
 
 _backup/
 _TRASH/

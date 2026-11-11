@@ -50,7 +50,7 @@ const RELEASES: Record<DownloadablePlatform, Release[]> = {
       platform: "AppImage",
       filename: "trelod.AppImage",
       size: "~103 MB",
-      url: "/desktop/trelod.AppImage",
+      url: "https://github.com/vyoltrava/nebula/releases/latest/download/trelod.AppImage",
     },
   ],
   android: [
@@ -109,7 +109,7 @@ export default function DownloadPage() {
     },
     {
       title: t("download.linuxStepDownload"),
-      command: `curl -fL '${RELEASES.linux[0].url}' -o "$HOME/Applications/trelod.AppImage" &&\ncurl -fL 'https://trelod.vercel.app/pwa/icon-512.png' -o "$HOME/.local/share/icons/hicolor/512x512/apps/trelod.png"`,
+      command: `curl -fL '${RELEASES.linux[0].url}' -o "$HOME/Applications/trelod.AppImage" &&\ncurl -fL 'https://github.com/vyoltrava/nebula/releases/latest/download/trelod-icon.png' -o "$HOME/.local/share/icons/hicolor/512x512/apps/trelod.png"`,
     },
     {
       title: t("download.linuxStepPermission"),

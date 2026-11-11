@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const RELEASE_DIR = join(ROOT, "release");
-const PUBLIC_DESKTOP_DIR = resolve(ROOT, "..", "l_frontend", "public", "desktop");
+const ICON_PATH = resolve(ROOT, "..", "l_frontend", "public", "pwa", "icon-512.png");
 
 const version = process.argv[2];
 if (!version || !/^\d+(\.\d+)*$/.test(version)) {
@@ -25,6 +27,7 @@ const artifacts = [
   `trelod-${version}.deb`,
 ];
 const missing = artifacts.filter((filename) => !existsSync(join(RELEASE_DIR, filename)));
+if (!existsSync(ICON_PATH)) missing.push("Trelod icon (l_frontend/public/pwa/icon-512.png)");
 if (missing.length > 0) {
   console.error(`Linux build artifacts are missing from ${RELEASE_DIR}:`);
   for (const filename of missing) console.error(`  - ${filename}`);
@@ -32,14 +35,24 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-mkdirSync(PUBLIC_DESKTOP_DIR, { recursive: true });
-for (const filename of artifacts) {
-  copyFileSync(join(RELEASE_DIR, filename), join(PUBLIC_DESKTOP_DIR, filename));
-}
-copyFileSync(
-  join(RELEASE_DIR, `trelod-${version}.AppImage`),
-  join(PUBLIC_DESKTOP_DIR, "trelod.AppImage")
-);
+const uploadDir = mkdtempSync(join(tmpdir(), "trelod-linux-release-"));
+try {
+  const uploads = [
+    [join(RELEASE_DIR, artifacts[0]), join(uploadDir, "trelod.AppImage")],
+    [join(RELEASE_DIR, artifacts[1]), join(uploadDir, "trelod.deb")],
+    [ICON_PATH, join(uploadDir, "trelod-icon.png")],
+  ];
+  for (const [source, destination] of uploads) copyFileSync(source, destination);
 
-console.log(`Linux ${version} installers copied to ${PUBLIC_DESKTOP_DIR}.`);
-console.log("The download page serves the AppImage as /desktop/trelod.AppImage.");
+  execFileSync("gh", [
+    "release", "create", `v${version}`,
+    ...uploads.map(([, destination]) => destination),
+    "--repo", "vyoltrava/nebula",
+    "--title", `Trelod Linux ${version}`,
+    "--generate-notes",
+  ], { stdio: "inherit" });
+} finally {
+  rmSync(uploadDir, { recursive: true, force: true });
+}
+
+console.log(`Linux ${version} release uploaded to GitHub.`);

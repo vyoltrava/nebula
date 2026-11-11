@@ -30,16 +30,17 @@ linux:
     - deb
     - appimage
   icon: ../l_frontend/public/pwa/icon-512.png
+  category: Network
+  synopsis: "Trelod — anonymous social desktop application"
+  description: "Full-fledged Trelod client for Linux"
 
-  # Deb-пакет настроек
-  deb:
-    synopsis: "Trelod — anonymous social desktop application"
-    description: "Full-fledged Trelod client for Linux"
-    categories: Utility
+# Target-specific options belong at the configuration root in electron-builder 25.
+deb:
+  synopsis: "Trelod — anonymous social desktop application"
+  description: "Full-fledged Trelod client for Linux"
 
-  # AppImage-настроек
-  appimage:
-    synopsis: "Trelod — anonymous social desktop application"
+appImage:
+  synopsis: "Trelod — anonymous social desktop application"
 
 # Иконка берётся из l_frontend/public/ — единый источник (git), дублей в linux/ нет.
 

@@ -68,7 +68,7 @@ Perfect for bloggers who want direct content with their audience, and for commun
 
 ### Trelod Desktop (Linux)
 - Electron app named `trelod`, distributed as `.AppImage` and `.deb`
-- The latest published AppImage is served from the download page at `/desktop/trelod.AppImage`
+- The latest published AppImage is served from the GitHub Release at a stable download URL
 - On the download page, Linux users get separate terminal commands to download and enable the AppImage, then create a Trelod shortcut in the applications menu; no local compilation is needed
 
 ### Monetization
@@ -209,6 +209,7 @@ npm run release -- "$VERSION"
 # Or run in dev mode:
 NEBULA_APP_URL=http://localhost:3000 npm run dev
 ```
-The release command checks that the requested version matches `linux/package.json`, then copies the
-versioned `.AppImage` and `.deb` to `l_frontend/public/desktop/` and publishes the
-AppImage under the stable download-page URL. Deploy the frontend after committing those files.
+The release command checks that the requested version matches `linux/package.json`, then uploads
+the AppImage, `.deb`, and matching icon to a GitHub Release. Authenticate first with `gh auth login`;
+push the source changes before creating the release. The download page always links to the latest
+release, so no large binaries need to be committed to the repository.
