@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,6 +11,12 @@ const PUBLIC_DESKTOP_DIR = resolve(ROOT, "..", "l_frontend", "public", "desktop"
 const version = process.argv[2];
 if (!version || !/^\d+(\.\d+)*$/.test(version)) {
   console.error("Usage: npm run release -- <version>");
+  process.exit(1);
+}
+
+const packageJson = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+if (packageJson.version !== version) {
+  console.error(`Requested version ${version} does not match linux/package.json (${packageJson.version}).`);
   process.exit(1);
 }
 
@@ -30,6 +36,10 @@ mkdirSync(PUBLIC_DESKTOP_DIR, { recursive: true });
 for (const filename of artifacts) {
   copyFileSync(join(RELEASE_DIR, filename), join(PUBLIC_DESKTOP_DIR, filename));
 }
+copyFileSync(
+  join(RELEASE_DIR, `trelod-${version}.AppImage`),
+  join(PUBLIC_DESKTOP_DIR, "trelod.AppImage")
+);
 
 console.log(`Linux ${version} installers copied to ${PUBLIC_DESKTOP_DIR}.`);
-console.log("Commit and deploy the repository to publish the downloads.");
+console.log("The download page serves the AppImage as /desktop/trelod.AppImage.");

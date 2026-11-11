@@ -48,9 +48,9 @@ const RELEASES: Record<DownloadablePlatform, Release[]> = {
   linux: [
     {
       platform: "AppImage",
-      filename: "trelod-1.0.0.AppImage",
+      filename: "trelod.AppImage",
       size: "~103 MB",
-      url: "https://github.com/vyoltrava/nebula/releases/download/v1.0.0/trelod-1.0.0.AppImage",
+      url: "/desktop/trelod.AppImage",
     },
   ],
   android: [
@@ -105,11 +105,11 @@ export default function DownloadPage() {
   const linuxInstallCommands = [
     {
       title: t("download.linuxStepFolder"),
-      command: 'mkdir -p "$HOME/Applications"',
+      command: 'mkdir -p "$HOME/Applications" "$HOME/.local/share/icons/hicolor/512x512/apps"',
     },
     {
       title: t("download.linuxStepDownload"),
-      command: `curl -fL '${RELEASES.linux[0].url}' -o "$HOME/Applications/trelod.AppImage"`,
+      command: `curl -fL '${RELEASES.linux[0].url}' -o "$HOME/Applications/trelod.AppImage" &&\ncurl -fL 'https://trelod.vercel.app/pwa/icon-512.png' -o "$HOME/.local/share/icons/hicolor/512x512/apps/trelod.png"`,
     },
     {
       title: t("download.linuxStepPermission"),
@@ -124,7 +124,7 @@ Type=Application
 Name=Trelod
 Comment=Anonymous social platform and encrypted messenger
 Exec="$HOME/Applications/trelod.AppImage"
-Icon=applications-internet
+Icon=$HOME/.local/share/icons/hicolor/512x512/apps/trelod.png
 Terminal=false
 Categories=Network;InstantMessaging;
 EOF`,
