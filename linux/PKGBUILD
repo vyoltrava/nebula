@@ -18,6 +18,8 @@ package() {
   # Install the electron app from local source
   install -d "$pkgdir/opt/trelod"
   cp -r main package.json electron-builder.yml scripts "$pkgdir/opt/trelod/"
+  install -Dm644 "$startdir/../l_frontend/public/pwa/icon-512.png" \
+    "$pkgdir/opt/trelod/public/pwa/icon-512.png"
 
   # Create launch script
   install -d "$pkgdir/usr/bin"

@@ -1,7 +1,18 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 let mainWindow;
+
+function windowIconPath() {
+  const iconPaths = [
+    path.join(process.resourcesPath, 'public', 'pwa', 'icon-512.png'),
+    path.join(__dirname, '..', 'public', 'pwa', 'icon-512.png'),
+    path.join(__dirname, '..', '..', 'l_frontend', 'public', 'pwa', 'icon-512.png')
+  ];
+
+  return iconPaths.find((iconPath) => fs.existsSync(iconPath));
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -14,7 +25,7 @@ function createWindow() {
     },
     show: false,
     title: 'trelod',
-    icon: path.join(__dirname, '..', 'public', 'icon.png')
+    icon: windowIconPath()
   });
 
   const startUrl = process.env.NEBULA_APP_URL || 'https://trelod.vercel.app';

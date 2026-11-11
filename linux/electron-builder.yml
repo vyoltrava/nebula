@@ -5,14 +5,20 @@
 appId: trelod.linux
 productName: trelod
 
- directories:
-   output: release
-   buildResources: build
+directories:
+  output: release
+  buildResources: build
 
 # Фронтенд грузится удалённо по NEBULA_APP_URL (как в Windows и Capacitor)
 files:
   - main/**/*
   - package.json
+
+extraResources:
+  - from: ../l_frontend/public/pwa
+    to: public/pwa
+    filter:
+      - icon-512.png
 
 asar: true
 
