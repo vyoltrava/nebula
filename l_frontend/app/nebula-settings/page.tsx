@@ -24,6 +24,7 @@ import { DevicePermissionsSection } from "@/components/DevicePermissionsSection"
 import { LiveTextSettings } from "@/components/LiveTextSettings";
 import { PaymentShop } from "@/components/payments/PaymentShop";
 import QRSettingsSection from "@/components/qr/QRSettingsSection";
+import { AppUpdateSettings } from "@/components/AppUpdateSettings";
 
 export default function NebulaSettingsPage() {
   const router = useRouter();
@@ -268,11 +269,7 @@ export default function NebulaSettingsPage() {
                     {s.id === "language" && <LanguageSwitcher />}
                     {s.id === "payments" && <PaymentShop />}
                     {s.id === "qr" && <QRSettingsSection user={user} />}
-                    {s.id === "download" && (
-                      <button onClick={() => router.push("/download")} className="rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium py-2.5 px-4 transition-colors">
-                        {t("download.title")}
-                      </button>
-                    )}
+                    {s.id === "download" && <AppUpdateSettings onDownload={() => router.push("/download")} />}
                   </div>
                 )}
               </div>

@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
-import { registerServiceWorker, requestPeriodicSync } from "@/lib/pwa/register";
+import { registerServiceWorker, requestPeriodicSync, updateServiceWorker } from "@/lib/pwa/register";
+import { applyPwaUpdate } from "@/lib/appUpdate";
 
 /**
  * Регистрирует Service Worker и показывает баннер обновления,
@@ -11,7 +12,7 @@ import { registerServiceWorker, requestPeriodicSync } from "@/lib/pwa/register";
 export default function PWARegister() {
   const { t } = useI18n();
   const [updateReady, setUpdateReady] = useState(false);
-  const [swState, setSwState] = useState<string>("idle");
+  const [updateError, setUpdateError] = useState(false);
 
   useEffect(() => {
     let disposed = false;
@@ -20,42 +21,44 @@ export default function PWARegister() {
       swUrl: "/sw.js",
       onState: (state) => {
         if (disposed) return;
-        setSwState(state);
         if (state === "error") {
           // Не роняем приложение: просто логируем.
           console.warn("[PWA] SW недоступен, продолжаем без офлайн-режима.");
         }
       },
-      onUpdate: (registration) => {
+      onUpdate: () => {
         if (disposed) return;
-        // Есть новая версия — показываем баннер.
         setUpdateReady(true);
-        // Запоминаем воркера для принудительного skipWaiting при подтверждении.
-        window.__nebulaWaitingSW = registration.waiting || registration.installing || null;
       },
     })
       // Периодическая фоновая синхронизация — только там, где доступна.
       .then(() => requestPeriodicSync(60).catch(() => {}));
 
+    const checkForUpdates = () => {
+      if (document.visibilityState === "visible") {
+        void updateServiceWorker();
+      }
+    };
+    const updateTimer = window.setInterval(() => void updateServiceWorker(), 30 * 60 * 1000);
+    window.addEventListener("focus", checkForUpdates);
+    document.addEventListener("visibilitychange", checkForUpdates);
+
     return () => {
       disposed = true;
+      window.clearInterval(updateTimer);
+      window.removeEventListener("focus", checkForUpdates);
+      document.removeEventListener("visibilitychange", checkForUpdates);
     };
   }, []);
 
   const applyUpdate = useCallback(async () => {
-    // Просим waiting-воркера активироваться и перезагружаемся.
-    const waiting = window.__nebulaWaitingSW;
-    if (waiting) {
-      waiting.postMessage({ type: "SKIP_WAITING" });
-    } else {
-      navigator.serviceWorker?.controller?.postMessage({ type: "SKIP_WAITING" });
+    setUpdateError(false);
+    try {
+      await applyPwaUpdate();
+    } catch (error) {
+      console.error("[PWA] Не удалось применить обновление:", error);
+      setUpdateError(true);
     }
-    // Дождёмся, когда новый SW возьмёт контроль, затем перезагрузим.
-    navigator.serviceWorker
-      ?.getRegistration()
-      .then((reg) => reg?.update())
-      .catch(() => {});
-    setTimeout(() => window.location.reload(), 400);
   }, []);
 
   if (!updateReady) return null;
@@ -69,7 +72,7 @@ export default function PWARegister() {
         N
       </div>
       <p className="min-w-0 flex-1 truncate text-sm font-medium text-white">
-        {t("pwa.updateAvailable")}
+        {updateError ? t("download.updateFailed") : t("pwa.updateAvailable")}
       </p>
       <button
         onClick={applyUpdate}
@@ -86,11 +89,4 @@ export default function PWARegister() {
       </button>
     </div>
   );
-}
-
-// Тип для хранения waiting-воркера (глобально, чтобы пережить ререндеры).
-declare global {
-  interface Window {
-    __nebulaWaitingSW: ServiceWorker | null;
-  }
 }

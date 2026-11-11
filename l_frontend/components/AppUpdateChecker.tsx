@@ -5,8 +5,8 @@
 import { useEffect, useState } from 'react';
 import { Download, RefreshCw, X, ArrowUpCircle } from 'lucide-react';
 import {
-  checkApkUpdate, isNativeApp, isDesktopApp, isPwaStandalone, shouldCheckUpdates,
-  installUpdate, applyPwaUpdate, ApkUpdateInfo,
+  checkApkUpdate, isDesktopApp, supportsNativeUpdate,
+  installUpdate, type ApkUpdateInfo, type AppRuntimeWindow,
 } from '@/lib/appUpdate';
 
 const DISMISS_PREFIX = 'apk_update_dismissed_';
@@ -16,20 +16,18 @@ export function AppUpdateChecker() {
   const [hidden, setHidden] = useState(true);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [isPwa, setIsPwa] = useState(false);
 
   useEffect(() => {
-    if (!shouldCheckUpdates()) return; // обычная вкладка браузера — SW сам обновится
+    if (!supportsNativeUpdate() && !isDesktopApp()) return;
 
-    setIsPwa(!isNativeApp() && !isDesktopApp() && isPwaStandalone());
-
-    // Нативному/десктоп-приложению проверяемся часто (минуты) — чтобы кнопка
-    // появлялась сразу после деплоя на git. PWA — реже (фронт и так обновляется через SW).
-    const isNativeOrDesktop = isNativeApp() || isDesktopApp();
-    const CHECK_INTERVAL_MS = isNativeOrDesktop ? 5 * 60 * 1000 : 12 * 60 * 60 * 1000;
+    const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
     // Показать баннер, если версия новее и юзер ещё не скрывал её.
     const show = (info: ApkUpdateInfo) => {
+      if (info?.error) {
+        console.error('App update check failed:', info.error);
+        return;
+      }
       if (!info || !info.available || !info.apkUrl) return;
       const dismissed = localStorage.getItem(DISMISS_PREFIX + info.latestVersion);
       if (dismissed) return;
@@ -54,7 +52,7 @@ export function AppUpdateChecker() {
 
     // Десктоп: главный процесс сам поллит update.json и пушит «update:available» —
     // баннер появляется в течение минуты после деплоя даже без действий юзера.
-    const unsubscribe = (window as any).trelodDesktop?.onUpdateAvailable?.((i: any) => {
+    const unsubscribe = (window as AppRuntimeWindow).trelodDesktop?.onUpdateAvailable?.((i) => {
       show({
         available: !!i?.available,
         latestVersion: String(i?.latestVersion || ''),
@@ -81,12 +79,6 @@ export function AppUpdateChecker() {
   const doUpdate = async () => {
     if (!update.apkUrl) return;
     setBusy(true);
-    if (isPwa) {
-      // PWA (вкл. iOS Home Screen): обновление = новый фронт, применяем через SW
-      setStatus('Применяю обновление…');
-      await applyPwaUpdate(); // внутри — reload страницы
-      return;
-    }
     setStatus('Скачиваю обновление…');
     const res = await installUpdate(update.apkUrl);
     setStatus(res.ok ? (res.message || 'Готово — запускаю установщик.') : `Ошибка: ${res.error}`);
@@ -123,9 +115,7 @@ export function AppUpdateChecker() {
                   </span>
                 </div>
                 <p className="text-sm text-gray-500 dark:text-white/50 mt-0.5">
-                  {isPwa
-                    ? 'Установите новую версию сайта — обновление применится сразу.'
-                    : `Доступна новая версия. Текущая: v${update.currentVersion}`}
+                  {`Доступна новая версия. Текущая: v${update.currentVersion}`}
                 </p>
                 {status && (
                   <p className="text-xs text-[#8b5cf6] mt-2">{status}</p>

@@ -30,6 +30,11 @@ import type { MessageKey } from "@/lib/i18n";
 import { BrandIcon } from "@/components/BrandIcon"; 
 import { CommunityTabs } from "@/components/CommunityTabs";
 import { getNotifsCache, createNotifsCacheWriter, updateNotifsCache } from "@/lib/notifsCache";
+import {
+  setSidebarSide,
+  type SidebarSide,
+  useSidebarSide,
+} from "@/lib/sidebarPreferences";
 
 
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
@@ -298,7 +303,7 @@ function LayoutPreview({ kind }: { kind: SidebarLayout }) {
   );
 }
 
-function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; onClose: () => void; isMobile?: boolean }) {
+function LayoutPicker({ current, side, onClose, isMobile }: { current: SidebarLayout; side: SidebarSide; onClose: () => void; isMobile?: boolean }) {
   const { t } = useI18n();
   // 📱 На телефоне компьютерные виды (Орбита-кнопка / Док) НЕ показываем —
   //    там всё равно мобильная версия интерфейса. Только «Классика» и «Орбита 2».
@@ -316,7 +321,7 @@ function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; 
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-[310]" onClick={onClose} />
-      <div className="fixed z-[311] w-[270px] max-w-[calc(100vw-24px)] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:left-auto md:right-3 md:translate-x-0 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-3">
+      <div className="fixed z-[311] w-[270px] max-w-[calc(100vw-24px)] max-h-[calc(100dvh-24px)] overflow-y-auto left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:left-auto md:right-3 md:translate-x-0 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-3">
         <div className="flex items-center justify-between mb-2 px-1">
           <p className="text-sm font-black text-gray-900 dark:text-white">{t("nav.layout")}</p>
           <button onClick={onClose} className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white p-1"><X size={16} /></button>
@@ -344,6 +349,26 @@ function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; 
               <p className="text-[10px] text-gray-600 dark:text-white/50 mt-0.5 leading-snug">{v.desc}</p>
             </button>
           ))}
+        </div>
+        <div className="mt-3 rounded-xl border border-line dark:border-white/10 p-2">
+          <p className="mb-1.5 px-1 text-[10px] font-bold text-gray-600 dark:text-white/60">{t("nav.sidebarSide")}</p>
+          <div className="grid grid-cols-2 gap-1">
+            {(["right", "left"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={side === value}
+                onClick={() => setSidebarSide(value)}
+                className={`rounded-lg px-2 py-1.5 text-[10px] font-bold transition-colors ${
+                  side === value
+                    ? "bg-[#8b5cf6] text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10"
+                }`}
+              >
+                {t(value === "right" ? "nav.rightHanded" : "nav.leftHanded")}
+              </button>
+            ))}
+          </div>
         </div>
         <p className="mt-2 text-[10px] text-gray-500 dark:text-white/40 text-center">{t("nav.layoutHint")}</p>
         <p className="mt-1 text-[10px] text-[#8b5cf6] dark:text-[#a78bfa] text-center leading-snug">{t("nav.layoutCtrlHint")}</p>
@@ -1145,6 +1170,7 @@ const continueConfig = lastReadPost
   });
 
   const [layout, setLayout] = useState<SidebarLayout>(() => getSidebarLayout());
+  const sidebarSide = useSidebarSide();
   // 🎛 Свёрнутость линейного сайдбара (classic/dock объединены на ПК).
   // Хранится в localStorage — «вечная» позиция между загрузками/деплоями.
   const [collapsed, setCollapsed] = useState<boolean>(() => getSidebarCollapsed() || getSidebarLayout() === "dock");
@@ -1200,7 +1226,6 @@ const continueConfig = lastReadPost
     window.addEventListener("sidebar-layout-change", on);
     return () => window.removeEventListener("sidebar-layout-change", on);
   }, []);
-
   type WheelItem = { href: string; icon: any; label: string; isProfile?: boolean; count?: number };
 
   const innerItems: WheelItem[] = [
@@ -1426,10 +1451,10 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     const angle = ap.start + info.localIdx * step;
 
     return {
-      x: arcCenterRef.current.x + radius * Math.cos(angle),
+      x: arcCenterRef.current.x + (ap.fullCircle || sidebarSide === "right" ? 1 : -1) * radius * Math.cos(angle),
       y: arcCenterRef.current.y + radius * Math.sin(angle),
     };
-  }, [innerItems.length, outerItems.length]);
+  }, [innerItems.length, outerItems.length, sidebarSide]);
 
   const openWheelAt = useCallback((cx?: number, cy?: number) => {
     // 🚫 Nebula — классическая дуга не открывается (свежее чтение класса DOM,
@@ -1451,7 +1476,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     } else {
       if (!buttonRef.current) return;
       const rect = buttonRef.current.getBoundingClientRect();
-      centerX = rect.left + rect.width / 2 + ARC_OFFSET_X;
+      centerX = rect.left + rect.width / 2 + (sidebarSide === "right" ? ARC_OFFSET_X : -ARC_OFFSET_X);
       centerY = rect.top + rect.height / 2;
     }
 
@@ -1488,7 +1513,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { setWheelReady(true); });
     });
-  }, []);
+  }, [sidebarSide]);
 
   const closeWheel = useCallback((doAction: boolean) => {
     // 🚫 Nebula — дополнительная защита: если режим включился во время открытой дуги,
@@ -1911,6 +1936,12 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   // свёрнутость управляется кликом по логотипу и хранится в localStorage.
   const isMessagesPage = pathname?.startsWith("/messages") ?? false;
   const orbitDesktopPos = "bottom-56 right-0 rounded-l-full";
+  const mobileSidebarPos = sidebarSide === "right"
+    ? "right-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-l-full"
+    : "left-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-r-full";
+  const mobileOrbitPos = sidebarSide === "right"
+    ? "bottom-56 right-0 rounded-l-full"
+    : "bottom-56 left-0 rounded-r-full";
   const orbitRowPos = "bottom-[228px] right-[68px]";
   const iconClass = isDock ? "w-6 h-6 mx-auto shrink-0" : "w-[18px] h-[18px]";
   const textClass = isDock ? "hidden" : "block";
@@ -2289,9 +2320,9 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         {lastReadPost && (
           <div 
             className={`fixed z-[97] w-14 h-14 pointer-events-none flex items-center justify-center
-              ${layout === "orbit" 
-                ? orbitDesktopPos 
-                : "right-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-l-full"
+              ${layout === "orbit"
+                ? (isMobile ? mobileOrbitPos : orbitDesktopPos)
+                : mobileSidebarPos
               }
             `}
           >
@@ -2313,9 +2344,9 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
             ${wheelOpen
               ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110"
               : "border-line dark:border-white/10 active:scale-95"}
-            ${layout === "orbit" 
-              ? orbitDesktopPos
-              : "right-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-l-full"
+            ${layout === "orbit"
+              ? (isMobile ? mobileOrbitPos : orbitDesktopPos)
+              : mobileSidebarPos
             }
           `}
           style={{ 
@@ -2341,8 +2372,10 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 {!nebulaOff && showTooltip && showContinueButton && layout !== "orbit2" && (
   <div 
     className={`fixed z-[99] bg-[#8b5cf6] text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce
-      ${layout === "orbit" 
-        ? (isMobile ? "right-20 top-[calc(50%+8px)] -translate-y-1/2" : "bottom-64 right-20") 
+      ${layout === "orbit"
+        ? (isMobile
+          ? (sidebarSide === "right" ? "right-20 top-[calc(50%+8px)] -translate-y-1/2" : "left-20 top-[calc(50%+8px)] -translate-y-1/2")
+          : "bottom-64 right-20")
         : (isDock ? "left-24 bottom-20" : "left-64 bottom-16")
       }
     `}
@@ -2353,8 +2386,10 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     }
     <div 
       className={`absolute w-2 h-2 bg-[#8b5cf6] rotate-45
-        ${layout === "orbit" 
-          ? (isMobile ? "right-[-4px] top-1/2 -translate-y-1/2" : "bottom-[-4px] right-10") 
+        ${layout === "orbit"
+          ? (isMobile
+            ? (sidebarSide === "right" ? "right-[-4px] top-1/2 -translate-y-1/2" : "left-[-4px] top-1/2 -translate-y-1/2")
+            : "bottom-[-4px] right-10")
           : (isDock ? "left-[-4px] bottom-4" : "left-[-4px] bottom-4")
         }
       `}
@@ -2477,7 +2512,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
       {showBugModal && <BugReportModal onClose={() => setShowBugModal(false)} />}
       {showSearch && <MobileSearch onClose={() => setShowSearch(false)} />}
-      {showLayoutPicker && <LayoutPicker current={layout} isMobile={isMobile} onClose={() => setShowLayoutPicker(false)} />}
+      {showLayoutPicker && <LayoutPicker current={layout} side={sidebarSide} isMobile={isMobile} onClose={() => setShowLayoutPicker(false)} />}
       
       {/* 🆕 МОДАЛКА СМЕНЫ АККАУНТА */}
       {showOrbitSwitcher && (

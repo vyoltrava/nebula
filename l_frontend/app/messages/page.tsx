@@ -615,7 +615,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   }
 
   async function leaveChannel(chId: number) {
-    if (!confirm(t("channels.unsubscribe") || "Отписаться от канала?")) return;
+    if (!confirm(t("channels.unsubscribe"))) return;
     const token = getToken();
     if (!token) return;
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${chId}/subscribe`, {
@@ -625,7 +625,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   }
 
   async function deleteChannelFromList(chId: number) {
-    if (!confirm(t("channels.deleteChannelConfirm") || "Удалить канал? Действие необратимо.")) return;
+    if (!confirm(t("channels.deleteChannelConfirm"))) return;
     const token = getToken();
     if (!token) return;
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${chId}`, {
@@ -634,7 +634,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     if (res.ok) await load();
     else {
       const d = await res.json().catch(() => null);
-      alert(d?.detail || "Ошибка");
+      alert(d?.detail || t("common.error"));
     }
   }
 
@@ -726,7 +726,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       }
       await load();
     } catch (err: any) {
-      alert(err.message || "Ошибка");
+      alert(err.message || t("common.error"));
     } finally {
       setPinningChat(null);
       setActiveChatMenu(null);
@@ -880,15 +880,15 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
 
   // 🗂️ Список папок-вкладок: первая всегда «Все чаты», затем системная РАБОТА, затем кастомные. Как в Telegram.
   const folderTabs = useMemo(() => {
-    const tabs: any[] = [{ key: "all", label: "Все чаты", icon: "💬", locked: false, count: visibleChats.length }];
+    const tabs: any[] = [{ key: "all", label: t("messages.allChats"), icon: "💬", locked: false, count: visibleChats.length }];
     if (workChats.length > 0) {
-      tabs.push({ key: "work", label: "РАБОТА", icon: "💼", locked: true, count: workChats.length });
+      tabs.push({ key: "work", label: t("messages.work"), icon: "💼", locked: true, count: workChats.length });
     }
     for (const f of folderData?.folders || []) {
       tabs.push({ key: `f${f.id}`, label: f.name, icon: f.icon || "📁", locked: false, count: (f.chat_ids || []).length });
     }
     return tabs;
-  }, [folderData, visibleChats.length, workChats.length]);
+  }, [folderData, visibleChats.length, workChats.length, t]);
 
   // 🗂️ Чаты для активной вкладки (при поиске — все видимые, с фильтром).
   const displayChats = useMemo(() => {
@@ -991,7 +991,7 @@ const confirmPrismKey = async () => {
       body: formData,
     });
 
-    if (!res.ok) throw new Error("Не удалось сохранить ключ");
+    if (!res.ok) throw new Error(t("messages.prismSaveKeyError"));
 
     // Успех! Очищаем и переходим в чат
     setShowPrismModal(false);
@@ -1001,7 +1001,7 @@ const confirmPrismKey = async () => {
     setPrismSearchResults([]);
     router.push(`/prisme/${creationLandscape.chat_id}`);
   } catch (e) {
-    alert("Ошибка при установке ключа. Попробуйте снова.");
+    alert(t("messages.prismInstallKeyError"));
     setIsCreatingPrism(false);
   }
 };
@@ -1026,7 +1026,7 @@ const confirmPrismKey = async () => {
               {/* 🗂️ Управление папками чатов */}
               <button
                 onClick={() => setShowFolderManager(true)}
-                title="Папки чатов"
+                title={t("messages.folderManager")}
                 className="p-2 text-gray-500 dark:text-white/40 hover:text-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
               >
                 <FolderPlus size={18} />
@@ -1087,7 +1087,7 @@ const confirmPrismKey = async () => {
                         ? "bg-[#8b5cf6] text-white shadow-sm"
                         : "text-gray-600 dark:text-white/60 hover:bg-gray-200/70 dark:hover:bg-white/10"
                     }`}
-                    title={tab.locked ? "Системная папка — нельзя переименовать или удалить" : tab.label}
+                    title={tab.locked ? t("messages.systemFolderLocked") : tab.label}
                   >
                     <span className="text-sm leading-none">{tab.icon}</span>
                     <span>{tab.label}</span>
@@ -1199,21 +1199,23 @@ const confirmPrismKey = async () => {
           </div>
         )}
         
-        {!loading && chats.length === 0 && (
+        {!loading && displayChats.length === 0 && (
           <div className="p-12 text-center">
             <MessageSquare size={48} className="text-gray-500 dark:text-white/20 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-white/60 text-lg">{query ? t("messages.nothingFound") : t("messages.noDialogs")}</p>
-            <p className="text-gray-500 dark:text-white/40 text-sm mt-2">
-              {query ? t("messages.tryAnother") : t("messages.startHint")}
+            <p className="text-gray-600 dark:text-white/60 text-lg">
+              {query
+                ? t("messages.nothingFound")
+                : activeFolder === "all"
+                  ? t("messages.noDialogs")
+                  : t("messages.folderEmpty")}
             </p>
-          </div>
-        )}
-
-        {!loading && displayChats.length === 0 && !query && (
-          <div className="p-12 text-center">
-            <MessageSquare size={48} className="text-gray-500 dark:text-white/20 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-white/60 text-lg">В этой папке пока нет чатов</p>
-            <p className="text-gray-500 dark:text-white/40 text-sm mt-2">Откройте менеджер папок (🗂️) и добавьте чаты</p>
+            <p className="text-gray-500 dark:text-white/40 text-sm mt-2">
+              {query
+                ? t("messages.tryAnother")
+                : activeFolder === "all"
+                  ? t("messages.startHint")
+                  : t("messages.folderEmptyHint")}
+            </p>
           </div>
         )}
 
@@ -1257,7 +1259,7 @@ const confirmPrismKey = async () => {
                       {chat.pinned && <Pin size={12} className="text-[#8b5cf6] shrink-0" />}
                       <p className="font-bold truncate text-gray-900 dark:text-white">{chat.name}</p>
                       <span className="ml-1 px-2 py-0.5 rounded-md bg-[#8b5cf6]/10 border border-[#8b5cf6]/40 text-[#a78bfa] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
-                        <Megaphone size={10} /> {t("messages.channel") || "Канал"}
+                        <Megaphone size={10} /> {t("messages.channel")}
                       </span>
                       {chat.badge && (
                         <span
@@ -1270,7 +1272,7 @@ const confirmPrismKey = async () => {
                       )}
                     </div>
                     <p className="text-sm text-gray-500 dark:text-white/40 mt-0.5 truncate">
-                      {chat.my_role === "owner" ? "Ваш канал" : chat.my_role === "admin" ? "Вы админ" : "Канал"} · @{chat.custom_slug} · {chat.subscribers_count}
+                      {chat.my_role === "owner" ? t("messages.channelOwner") : chat.my_role === "admin" ? t("messages.channelAdmin") : t("messages.channel")} · @{chat.custom_slug} · {chat.subscribers_count}
                     </p>
                   </div>
                   <div className="shrink-0 flex items-center gap-2">
@@ -1503,7 +1505,7 @@ const confirmPrismKey = async () => {
         <button
           onClick={() => setShowPublicChannels(true)}
           className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-[#8b5cf6] hover:bg-[#8b5cf6]/20 transition-colors border border-[#8b5cf6]/30"
-          title="Все каналы"
+          title={t("messages.allChannels")}
         >
           <Globe size={20} />
         </button>
@@ -1630,14 +1632,14 @@ const confirmPrismKey = async () => {
                       onClick={() => { setActiveChatMenu(null); setMenuPosition(null); deleteChannelFromList(menuChat.id); }}
                       className="w-full px-3 py-3 rounded-xl text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
                     >
-                      <Trash2 size={16} className="text-red-600 dark:text-red-400" /> {t("channels.deleteChannel") || "Удалить канал"}
+                      <Trash2 size={16} className="text-red-600 dark:text-red-400" /> {t("channels.deleteChannel")}
                     </button>
                   ) : (
                     <button
                       onClick={() => { setActiveChatMenu(null); setMenuPosition(null); leaveChannel(menuChat.id); }}
                       className="w-full px-3 py-3 rounded-xl text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
                     >
-                      <UserPlus size={16} className="rotate-45 text-red-600 dark:text-red-400" /> {t("channels.unsubscribe") || "Отписаться"}
+                      <UserPlus size={16} className="rotate-45 text-red-600 dark:text-red-400" /> {t("channels.unsubscribe")}
                     </button>
                   )}
                 </>
@@ -1749,10 +1751,10 @@ const confirmPrismKey = async () => {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-gray-900 dark:text-white tracking-wide">
-                      {creationLandscape ? "ВЫБЕРИТЕ КЛЮЧ" : "INITIATE PRISM"}
+                      {creationLandscape ? t("messages.prismChooseKey") : t("messages.prismInitiate")}
                     </h3>
                     <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest">
-                      {creationLandscape ? "Запомните этот объект для входа" : "Бесшовное E2E шифрование"}
+                      {creationLandscape ? t("messages.prismRememberObject") : t("messages.prismEncryption")}
                     </p>
                   </div>
                 </div>
@@ -1765,14 +1767,14 @@ const confirmPrismKey = async () => {
               {!creationLandscape && (
                 <div className="p-4 space-y-4">
                   <p className="text-xs text-gray-600 dark:text-white/60 leading-relaxed">
-                    Введите имя пользователя. После создания чата вам будет предложено выбрать визуальный ключ на пейзаже.
+                    {t("messages.prismEnterUsername")}
                   </p>
                   <div className="relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
                     <input
                       value={prismSearchQuery}
                       onChange={(e) => { setPrismSearchQuery(e.target.value); searchUsersForPrism(e.target.value); }}
-                      placeholder="Поиск пользователя..."
+                      placeholder={t("messages.prismSearchUser")}
                       className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-cyan-500/50 text-sm"
                       autoFocus
                     />
@@ -1794,12 +1796,12 @@ const confirmPrismKey = async () => {
                       </button>
                     ))}
                     {prismSearchQuery && prismSearchResults.length === 0 && !isCreatingPrism && (
-                      <p className="text-center text-xs text-gray-500 dark:text-white/30 py-4">Пользователи не найдены</p>
+                      <p className="text-center text-xs text-gray-500 dark:text-white/30 py-4">{t("messages.usersNotFound")}</p>
                     )}
                     {isCreatingPrism && (
                       <div className="flex items-center justify-center gap-2 py-4 text-cyan-600 dark:text-cyan-400 text-xs">
                         <div className="w-4 h-4 border-2 border-cyan-600 dark:border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                        Генерация пейзажа...
+                        {t("messages.prismGeneratingLandscape")}
                       </div>
                     )}
                   </div>
@@ -1837,9 +1839,9 @@ const confirmPrismKey = async () => {
                     className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-all flex items-center justify-center gap-2"
                   >
                     {isCreatingPrism ? (
-                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Сохранение...</>
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> {t("messages.saving")}</>
                     ) : (
-                      <><ShieldCheck size={18} /> Подтвердить и войти в чат</>
+                      <><ShieldCheck size={18} /> {t("messages.confirmAndEnterChat")}</>
                     )}
                   </button>
                 </div>
@@ -2024,11 +2026,11 @@ const confirmPrismKey = async () => {
           onClick={() => { const cid = joinToast.channel_id; setJoinToast(null); if (cid) router.push(`/channels/${cid}`); }}
           className="fixed bottom-24 right-6 z-[60] max-w-sm text-left rounded-2xl border border-[#8b5cf6]/50 bg-white dark:bg-[#1f1f23] shadow-2xl p-4 hover:border-[#8b5cf6] transition-colors"
         >
-          <p className="text-sm font-black text-[#8b5cf6] mb-1">🔔 Новая заявка на вступление</p>
+          <p className="text-sm font-black text-[#8b5cf6] mb-1">🔔 {t("messages.joinRequestNew")}</p>
           <p className="text-sm text-gray-900 dark:text-white font-bold truncate">
             @{joinToast.user?.username} — {joinToast.user?.display_name}
           </p>
-          <p className="text-xs text-gray-500 dark:text-white/40 mt-1">нажмите, чтобы открыть канал и рассмотреть</p>
+          <p className="text-xs text-gray-500 dark:text-white/40 mt-1">{t("messages.joinRequestOpenHint")}</p>
         </button>
       )}
 
@@ -2039,11 +2041,11 @@ const confirmPrismKey = async () => {
           className="fixed bottom-6 right-6 z-[60] max-w-sm text-left rounded-2xl border border-purple-500/50 bg-white dark:bg-[#1f1f23] shadow-2xl p-4 hover:border-purple-500 transition-colors"
         >
           <p className="text-sm font-black text-purple-500 mb-1">
-            🎫 {ticketToast.kind_label || "Заявка"} назначена вам
+            🎫 {ticketToast.kind_label || t("messages.ticket")} {t("messages.ticketAssignedToYou")}
           </p>
           <p className="text-sm text-gray-900 dark:text-white font-bold truncate">{ticketToast.title}</p>
           <p className="text-xs text-gray-500 dark:text-white/40 mt-1">
-            от {ticketToast.created_by_name || "системы"} · нажмите, чтобы открыть чат отдела
+            {t("messages.ticketFrom")} {ticketToast.created_by_name || t("messages.system")} · {t("messages.openDepartmentChat")}
           </p>
         </button>
       )}

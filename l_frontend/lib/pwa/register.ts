@@ -55,13 +55,6 @@ export async function registerServiceWorker(opts: RegisterOptions = {}): Promise
     };
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
 
-    // Сообщение от активного SW (обновление версии / призыв перезагрузиться).
-    navigator.serviceWorker.addEventListener("message", (event: MessageEvent) => {
-      if (event.data && event.data.type === "SW_UPDATED") {
-        onUpdate?.(registration);
-      }
-    });
-
     if (navigator.serviceWorker.controller) {
       onState?.("active", registration);
     }

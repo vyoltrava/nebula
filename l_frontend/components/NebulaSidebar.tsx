@@ -5,7 +5,7 @@
  *     отдельные кнопки создания всех типов чатов,
  *     свёрнутый вид = гамбургер вместо лого, развёрнутый = лого + "Nebula".
  * Мобилка: тема ОРБИТЫ (как в классическом Sidebar) — плавающая кнопка
- *     у правого края, по тапу раскрывает дугу с кнопками ПК-сайдбара.
+ *     у выбранного края, по тапу раскрывает дугу с кнопками ПК-сайдбара.
  */
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useTheme } from "next-themes";
@@ -13,7 +13,7 @@ import { resolveNickColor } from "@/lib/nickGlow";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Settings, LogOut, MessageCircle, ArrowLeft, Menu,
+  Settings, LogOut, MessageCircle, ArrowLeft, ArrowLeftRight, Menu,
   Users, Bug, Headphones, Sparkles, Bookmark, ShieldCheck, Orbit,
   Lock, X, Megaphone,
 } from "lucide-react";
@@ -28,6 +28,11 @@ import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { NebulaCircleModal } from "@/components/NebulaCircleModal";
 import { ensureKeyPair } from "@/lib/crypto";
+import {
+  setSidebarSide,
+  type SidebarSide,
+  useSidebarSide,
+} from "@/lib/sidebarPreferences";
 
 // 🪐 Константы ОРБИТЫ 1 (скопированы из классического Sidebar) — двухслойная дуга
 const ORBIT_INNER_RADIUS  = 135;
@@ -57,6 +62,7 @@ export function NebulaSidebar() {
   const [secretContactsLoading, setSecretContactsLoading] = useState(false);
   const [creatingSecret, setCreatingSecret] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const sidebarSide = useSidebarSide();
   const [wheelPos, setWheelPos] = useState<{ x: number; y: number } | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [wheelReady, setWheelReady] = useState(false);
@@ -294,13 +300,14 @@ export function NebulaSidebar() {
     { key: "messages", icon: MessageCircle, label: t("nav.messages"), badge: counts.chats, run: () => router.push("/messages") },
     { key: "saved", icon: Bookmark, label: t("messages.saved"), badge: 0, run: openSavedMessages },
     { key: "group", icon: Users, label: t("messages.createGroup"), badge: 0, run: openCreateGroup },
-    { key: "channel", icon: Megaphone, label: "Создать канал", badge: 0, run: openCreateChannel },
+    { key: "channel", icon: Megaphone, label: t("messages.createChannel"), badge: 0, run: openCreateChannel },
     { key: "secret", icon: Lock, label: t("profile.secretChat"), badge: 0, run: openCreateSecret },
     { key: "profile", icon: null, label: t("nav.profile"), badge: 0, run: () => user && router.push(`/nebula-user/${user.username}`) },
     { key: "logout", icon: LogOut, label: t("nav.logout"), badge: 0, run: () => setShowAccountSwitcher(true) },
     { key: "bug", icon: Bug, label: t("nav.reportProblem"), badge: 0, run: () => setShowBugModal(true) },
     { key: "support", icon: Headphones, label: t("nav.support"), badge: 0, run: () => router.push("/support") },
     { key: "settings", icon: Settings, label: t("nav.settings"), badge: 0, run: () => router.push("/nebula-settings") },
+    { key: "side", icon: ArrowLeftRight, label: `${t("nav.sidebarSide")}: ${t(sidebarSide === "right" ? "nav.rightHanded" : "nav.leftHanded")}`, badge: 0, run: () => setSidebarSide(sidebarSide === "right" ? "left" : "right") },
     { key: "circle", icon: Sparkles, label: t("nav.circle"), badge: 0, run: () => setShowCircle(true) },
   ];
   const orbitItemsRef = useRef(orbitItems);
@@ -349,7 +356,10 @@ export function NebulaSidebar() {
       const radius = inner ? ORBIT_INNER_RADIUS : ORBIT_OUTER_RADIUS;
       const step = (ORBIT_ARC_END - ORBIT_ARC_START) / Math.max(n - 1, 1);
       const angle = ORBIT_ARC_START + localIdx * step;
-      return { x: wheelPos.x + radius * Math.cos(angle), y: wheelPos.y + radius * Math.sin(angle) };
+      return {
+        x: wheelPos.x + (sidebarSide === "right" ? 1 : -1) * radius * Math.cos(angle),
+        y: wheelPos.y + radius * Math.sin(angle),
+      };
     };
 
     const nearestIdx = (px: number, py: number): number | null => {
@@ -363,14 +373,17 @@ export function NebulaSidebar() {
       return minDist <= ORBIT_SNAP_RADIUS ? nearest : null;
     };
 
-    // Открытие дуги от кнопки: центр = центр кнопки + сдвиг влево (как в классике)
+    // Открытие дуги: центр смещён от выбранного края внутрь экрана.
     const openWheel = () => {
       const el = orbitButtonRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
       setHoveredIdx(null);
       setClosing(false);
-      setWheelPos({ x: r.left + r.width / 2 + ORBIT_ARC_OFFSET_X, y: r.top + r.height / 2 });
+      setWheelPos({
+        x: r.left + r.width / 2 + (sidebarSide === "right" ? ORBIT_ARC_OFFSET_X : -ORBIT_ARC_OFFSET_X),
+        y: r.top + r.height / 2,
+      });
       try { navigator.vibrate?.(15); } catch {}
     };
 
@@ -383,7 +396,7 @@ export function NebulaSidebar() {
 
     return (
       <>
-        {/* 🪐 Кнопка ОРБИТЫ 1 у правого края: ТАП — открыть/закрыть дугу,
+        {/* 🪐 Кнопка ОРБИТЫ 1 у выбранного края: ТАП — открыть/закрыть дугу,
             ЗАЖАТИЕ (~250мс) — раскрыть дугу и выбрать пункт ведением пальца */}
         <button
           ref={orbitButtonRef}
@@ -420,7 +433,7 @@ export function NebulaSidebar() {
             if (wheelPosRef.current) closeWheel();
             else openWheel();
           }}
-          className={"md:hidden fixed z-[98] w-14 h-14 right-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-l-full bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border flex items-center justify-center shadow-lg shadow-gray-400/40 dark:shadow-black/50 transition-all duration-200 " + (wheelPos ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110" : "border-line dark:border-white/10 active:scale-95")}
+          className={"md:hidden fixed z-[98] w-14 h-14 top-[calc(50%+8px)] -translate-y-1/2 " + (sidebarSide === "right" ? "right-0 rounded-l-full" : "left-0 rounded-r-full") + " bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border flex items-center justify-center shadow-lg shadow-gray-400/40 dark:shadow-black/50 transition-all duration-200 " + (wheelPos ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110" : "border-line dark:border-white/10 active:scale-95")}
           style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" } as React.CSSProperties}
           onContextMenu={(e) => e.preventDefault()}
           aria-label={t("nav.navMenu")}
@@ -539,14 +552,14 @@ export function NebulaSidebar() {
         <div className={"flex " + (isDock ? "justify-center" : "items-center gap-2")}>
           {isDock ? (
             /* Свёрнутый вид: гамбургер вместо лого */
-            <button onClick={toggleSidebar} className="p-2 rounded-lg text-gray-500 dark:text-white/60 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" title="Развернуть меню">
+            <button onClick={toggleSidebar} className="p-2 rounded-lg text-gray-500 dark:text-white/60 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" title={t("nav.expandMenu")}>
               <Menu size={24} />
             </button>
           ) : (
             <>
               <img src="/nebula.svg" alt="Nebula" className="w-9 h-9 object-contain" draggable={false} />
               <h1 className="font-logo text-4xl text-[#3D1F6D] dark:text-[#8b5cf6]">Nebula</h1>
-              <button onClick={toggleSidebar} className="ml-auto p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" title="Свернуть меню">
+              <button onClick={toggleSidebar} className="ml-auto p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" title={t("nav.collapseMenu")}>
                 <ArrowLeft size={16} />
               </button>
             </>
@@ -583,7 +596,7 @@ export function NebulaSidebar() {
           {isChatOpen && (
             <Link href="/messages" className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"}>
               <ArrowLeft size={18} className={iconClass + " text-gray-700 dark:text-white/80 group-hover:text-gray-500 dark:group-hover:text-[#e0e0e0]!"} />
-              <span className={textClass}>Back to chats</span>
+              <span className={textClass}>{t("profile.backToChats")}</span>
             </Link>
           )}
           {navItems.map(({ href, icon: Icon, label, badge, isCircle }) => {
@@ -610,9 +623,9 @@ export function NebulaSidebar() {
             <Lock size={18} className={iconClass + " text-emerald-600 dark:text-emerald-400"} />
             <span className={textClass}>{t("profile.secretChat")}</span>
           </button>
-          <button onClick={openCreateChannel} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title="Создать канал">
+          <button onClick={openCreateChannel} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("messages.createChannel")}>
             <Megaphone size={18} className={iconClass + " text-[#8b5cf6]"} />
-            <span className={textClass}>Создать канал</span>
+            <span className={textClass}>{t("messages.createChannel")}</span>
           </button>
         </nav>
 

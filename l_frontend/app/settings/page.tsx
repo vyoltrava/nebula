@@ -35,6 +35,7 @@ import { DevicePermissionsSection } from "@/components/DevicePermissionsSection"
 import { LiveTextSettings } from "@/components/LiveTextSettings";
 import { AppearanceSettings } from "@/components/AppearanceSettings";
 import { AppIconPicker } from "@/components/AppIconPicker";
+import { AppUpdateSettings } from "@/components/AppUpdateSettings";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PaymentShop } from "@/components/payments/PaymentShop";
@@ -439,11 +440,7 @@ async function activate2FA() {
             )}
             {view === "download" && (
               <div className="space-y-4">
-                <h2 className="text-lg font-semibold">{t("download.title")}</h2>
-                <p className="text-sm text-[#B9B8BD]">{t("download.subtitle")}</p>
-                <Button icon={Download} onClick={() => router.push("/download")}>
-                  {t("download.download")}
-                </Button>
+                <AppUpdateSettings onDownload={() => router.push("/download")} />
               </div>
             )}
             {/* ---------- ПРОФИЛЬ ---------- */}
