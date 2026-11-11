@@ -49,14 +49,8 @@ const RELEASES: Record<DownloadablePlatform, Release[]> = {
     {
       platform: "AppImage",
       filename: "trelod-1.0.0.AppImage",
-      size: "~55 MB",
-      url: "/desktop/trelod-1.0.0.AppImage",
-    },
-    {
-      platform: "Debian / Ubuntu",
-      filename: "trelod-1.0.0.deb",
-      size: "~55 MB",
-      url: "/desktop/trelod-1.0.0.deb",
+      size: "~103 MB",
+      url: "https://github.com/vyoltrava/nebula/releases/download/v1.0.0/trelod-1.0.0.AppImage",
     },
   ],
   android: [
@@ -175,7 +169,7 @@ export default function DownloadPage() {
                     ? Terminal
                     : Smartphone;
                 return (
-                  <article key={release.filename} className={`group flex flex-col rounded-2xl border bg-ivory p-5 transition-all hover:-translate-y-0.5 hover:border-[#8b5cf6]/35 hover:shadow-lg hover:shadow-[#8b5cf6]/[0.06] dark:bg-[#1e1e23] ${index === 0 && selectedReleasePlatform !== "linux" ? "border-[#8b5cf6]/35" : "border-line dark:border-white/10"}`}>
+                  <article key={release.filename} className={`group flex flex-col rounded-2xl border bg-ivory p-5 transition-all hover:-translate-y-0.5 hover:border-[#8b5cf6]/35 hover:shadow-lg hover:shadow-[#8b5cf6]/[0.06] dark:bg-[#1e1e23] ${index === 0 ? "border-[#8b5cf6]/35" : "border-line dark:border-white/10"}`}>
                     <div className="mb-5 flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-[#7040c0] dark:text-[#b69aff]">
@@ -186,7 +180,7 @@ export default function DownloadPage() {
                           <p className="mt-0.5 text-xs text-gray-500 dark:text-white/45">{release.size}</p>
                         </div>
                       </div>
-                      {index === 0 && selectedReleasePlatform !== "linux" && (
+                      {index === 0 && (
                         <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
                           {t("download.install")}
                         </span>
@@ -207,9 +201,19 @@ export default function DownloadPage() {
               })}
             </div>
             {platform === "linux" && (
-              <p className="mt-3 rounded-xl border border-line bg-ivory px-4 py-3 text-sm text-gray-600 dark:border-white/10 dark:bg-[#1e1e23] dark:text-white/55">
-                {t("download.archInstructions")}
-              </p>
+              <div className="mt-3 space-y-3">
+                <p className="rounded-xl border border-line bg-ivory px-4 py-3 text-sm text-gray-600 dark:border-white/10 dark:bg-[#1e1e23] dark:text-white/55">
+                  {t("download.archInstructions")}
+                </p>
+                <div className="rounded-xl border border-line bg-ivory px-4 py-3 dark:border-white/10 dark:bg-[#1e1e23]">
+                  <p className="mb-2 text-sm font-semibold text-gray-700 dark:text-white/70">
+                    {t("download.linuxTerminalCommand")}
+                  </p>
+                  <code className="block overflow-x-auto whitespace-nowrap rounded-lg bg-gray-100 px-3 py-2 font-mono text-xs text-gray-700 dark:bg-white/[0.04] dark:text-white/70">
+                    {`curl -fL '${RELEASES.linux[0].url}' -o trelod.AppImage && chmod +x trelod.AppImage && ./trelod.AppImage`}
+                  </code>
+                </div>
+              </div>
             )}
           </section>
         )}

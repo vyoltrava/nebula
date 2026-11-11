@@ -68,8 +68,8 @@ Perfect for bloggers who want direct content with their audience, and for commun
 
 ### Trelod Desktop (Linux)
 - Electron app named `trelod`, distributed as `.AppImage` and `.deb`
-- Installers are copied into `l_frontend/public/desktop/` and served from this repository
-- The AppImage is the recommended option for Arch Linux and other distributions
+- The AppImage is available as a direct download from the GitHub Release and on the download page
+- Linux users can run the downloaded AppImage directly; no local compilation is needed
 
 ### Monetization
 - Payment module for selling roles and badges
