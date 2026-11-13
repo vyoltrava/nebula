@@ -1,12 +1,13 @@
 # app_split/routers/notifications.py
-from fastapi import APIRouter, Depends, HTTPException, Request
+import time
+
+from fastapi import APIRouter, Depends
 from sqlmodel import Session, select, func
 from pydantic import BaseModel
-from typing import Optional
 
 from database import get_session
-from models import User, Message, ChatMember, Notification, Update, UpdateRead, PushSubscription
-from dependencies import get_current_user, user_out
+from models import User, Role, Message, ChatMember, Notification, Update, UpdateRead, PushSubscription
+from dependencies import _role_cache, get_author_role, get_current_user
 
 router = APIRouter()
 

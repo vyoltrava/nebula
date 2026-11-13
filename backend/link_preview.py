@@ -24,6 +24,19 @@ MAX_URL_LENGTH = 2048
 _cache: TTLCache = TTLCache(maxsize=500, ttl=3600)
 _cache_lock = Lock()
 
+
+def _meta(soup: BeautifulSoup, names: list[str]) -> Optional[str]:
+    for name in names:
+        tag = soup.find("meta", attrs={"property": name})
+        if tag is None:
+            tag = soup.find("meta", attrs={"name": name})
+        if tag is not None:
+            content = tag.get("content")
+            if content:
+                return str(content)
+    return None
+
+
 # ============================================
 # 🛡️ SSRF-ЗАЩИТА
 # Проверяется IP КАЖДОГО хоста (включая цели редиректов),

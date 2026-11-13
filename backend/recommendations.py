@@ -1,51 +1,4 @@
 """
-Математический движок системы рекомендаций Nebula.
-Оценивает пару (anchor_user, candidate) по 8 метрикам с фиксированными весами.
-Все функции принимают `session: Session` и работают с теми же ядром моделей,
-что и основной main.py (Follow, Post, PostTag, Tag, Like, Role, IPLog).
-Результаты кешируются в Redis на 24 часа.
-"""
-import math
-import json
-from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
-
-from sqlmodel import Session, select, func
-from models import User, Post, PostTag, Tag, Follow, Like, Role
-
-# Веса метрик (см. ТЗ). Сумма = 1.0
-WEIGHTS = {
-    "subscriptions": 0.25,
-    "audience":      0.20,
-    "interests":     0.18,
-    "activity":      0.12,
-    "engagement":    0.10,
-    "language":      0.08,
-    "roles":         0.05,
-    "time":          0.02,
-}
-
-# Цвета для UI-карточек (фикс в спецификации)
-METRIC_COLORS = {
-    "subscriptions": "#4CAF50", "audience": "#2196F3", "interests": "#FF9800",
-    "activity": "#9C27B0", "engagement": "#F44336", "language": "#00BCD4",
-    "roles": "#795548", "time": "#607D8B",
-}
-
-
-# ---------------------------------------------------------------
-# вспомогательные «репозиторные» запросы
-# ---------------------------------------------------------------
-def _following_ids(user_id: int, session: Session) -> List[int]:
-    rows = session.exec(select(Follow.followee_id).where(Follow.follower_id == user_id)).all()
-    return [r[0] if isinstance(r, tuple) else r for r in rows] or []
-
-
-def _follower_ids(user_id: int, session: Session) -> List[int]:
-    rows = session.exec(select(Follow.follower_id).where(Follow.followee_id == user_id)).all()
-    return [r[0] if isinstance(r, tuple) else r for r in rows] or []
-
-"""
 🌌 recommendations.py — движок схожести пользователей (граф «паутина»).
 8 метрик с весами, итоговый score 0-100. Опирается на модели:
 Follow, Post, Tag, PostTag, Like, User.
@@ -59,7 +12,7 @@ from typing import Optional, List, Dict, Any
 
 from sqlmodel import Session, select, func
 
-from models import Follow, Post, PostTag, Tag, User
+from models import Follow, Like, Post, PostTag, Tag, User
 
 # Веса метрик (см. ТЗ)
 WEIGHTS = {
@@ -85,11 +38,15 @@ METRIC_COLORS = {
 # вспомогательные «репозиторные» запросы
 # ---------------------------------------------------------------
 def _following_ids(db: Session, user_id: int) -> list[int]:
-    return [r.following_id for r in db.exec(select(Follow).where(Follow.follower_id == user_id)).all()]
+    return list(db.exec(
+        select(Follow.followee_id).where(Follow.follower_id == user_id)
+    ).all())
 
 
 def _follower_ids(db: Session, user_id: int) -> list[int]:
-    return [r.follower_id for r in db.exec(select(Follow).where(Follow.following_id == user_id)).all()]
+    return list(db.exec(
+        select(Follow.follower_id).where(Follow.followee_id == user_id)
+    ).all())
 
 
 def _user_posts_30d(db: Session, user_id: int) -> list[Post]:
@@ -103,6 +60,7 @@ def _user_posts_30d(db: Session, user_id: int) -> list[Post]:
             Post.author_id == user_id,
             Post.reply_to_id.is_(None),
             Post.repost_of_id.is_(None),
+            Post.created_at >= cutoff,
         )
         .order_by(Post.created_at.desc())
         .limit(200)
@@ -113,11 +71,6 @@ def _user_posts_30d(db: Session, user_id: int) -> list[Post]:
 
 def _user_post_count(db: Session, user_id: int) -> int:
     return db.exec(select(func.count()).where(Post.author_id == user_id)).one()
-
-
-def _post_tag_overlap(db: Session, user_id: int) -> set[int]:
-    stmt = select(PostTag.tag_id).join(Post, Post.id == PostTag.post_id).where(Post.author_id == user_id)
-    return set(db.exec(stmt).all())
 
 
 def _follower_overlap(db: Session, a: int, b: int) -> set[int]:
@@ -179,7 +132,7 @@ def _posting_pattern(posts: list[Post]) -> list[float]:
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
             v[dt.hour % 24] += 1.0
-        return v
+    return v
 
 
 def _post_tag_overlap(db: Session, user_id: int) -> set[int]:
@@ -198,13 +151,21 @@ def calculate_interest_similarity(db: Session, a: User, b: User) -> float:
         return 0.0
     w_sum = 0.0
     for t in common:
-        ca = db.exec(select(func.count()).select(PostTag).where(
-            PostTag.tag_id == t).join(Post, PostTag.post_id == Post.id).where(Post.author_id == a.id)).one()
-        cb = db.exec(select(func.count()).select(PostTag).where(
-            PostTag.tag_id == t).join(Post, PostTag.post_id == Post.id).where(Post.author_id == b.id)).one()
+        ca = db.exec(
+            select(func.count())
+            .select_from(PostTag)
+            .join(Post, PostTag.post_id == Post.id)
+            .where(PostTag.tag_id == t, Post.author_id == a.id)
+        ).one()
+        cb = db.exec(
+            select(func.count())
+            .select_from(PostTag)
+            .join(Post, PostTag.post_id == Post.id)
+            .where(PostTag.tag_id == t, Post.author_id == b.id)
+        ).one()
         if max(ca, cb) > 0:
             w_sum += min(ca, cb) / max(ca, cb)
-        return w_sum / len(ta | tb) * 100.0
+    return w_sum / len(ta | tb) * 100.0
 
 
 def calculate_activity_similarity(db: Session, a: User, b: User) -> float:
@@ -228,15 +189,17 @@ def calculate_activity_similarity(db: Session, a: User, b: User) -> float:
 
 
 def _avg_likes_per_post(db: Session, uid: int) -> float:
-    total = db.exec(select(func.count()).select(Like).where(
-        Like.post_id.in_(db.exec(select(Post.id).where(Post.author_id == uid)))
-    )).one() or 0
+    total = db.exec(
+        select(func.count())
+        .select_from(Like)
+        .where(Like.post_id.in_(select(Post.id).where(Post.author_id == uid)))
+    ).one() or 0
     pc = _user_post_count(db, uid)
     return float(total) / max(pc, 1)
 
 
 def _avg_comments_per_post(db: Session, uid: int) -> float:
-    reply_ids = [r.id for r in db.exec(select(Post.id).where(Post.author_id == uid))]
+    reply_ids = db.exec(select(Post.id).where(Post.author_id == uid)).all()
     if not reply_ids:
         return 0.0
     replies = db.exec(select(func.count()).where(Post.reply_to_id.in_(reply_ids))).one() or 0
@@ -260,7 +223,7 @@ def calculate_engagement_similarity(db: Session, a: User, b: User) -> float:
     ret = _rel(_retention(db, a), _retention(db, b))
     if not (0.0 <= ret <= 1.0):
         ret = 0.0
-        return (likes * 0.4 + comments * 0.35 + ret * 0.25) * 100.0
+    return (likes * 0.4 + comments * 0.35 + ret * 0.25) * 100.0
 
 
 def _detect_language(db: Session, uid: int) -> Optional[str]:
@@ -277,12 +240,7 @@ def _detect_language(db: Session, uid: int) -> Optional[str]:
 
 
 def _user_timezone(db: Session, u: User) -> Optional[str]:
-    tz = getattr(u, "timezone", None)
-    if tz:
-        return tz
-    from models import IPLog
-    log = db.exec(select(IPLog).where(IPLog.user_id == u.id).order_by(IPLog.login_at.desc()).limit(1)).first()
-    return getattr(log, "timezone", None) if log else None
+    return getattr(u, "timezone", None)
 
 
 def calculate_language_similarity(db: Session, a: User, b: User) -> float:
@@ -333,18 +291,7 @@ def calculate_time_similarity(db: Session, a: User, b: User) -> float:
         if created.tzinfo is not None:
             created = created.replace(tzinfo=None)
         return (datetime.utcnow() - created).total_seconds() / 86400
-    reg = _rel(_days(a), _days(b))
-    def _sess(u: User) -> float:
-        from models import IPLog
-        logs = db.exec(select(IPLog).where(IPLog.user_id == u.id).order_by(IPLog.login_at.desc()).limit(200)).all()
-        diffs = []
-        for lg in logs:
-            logout = getattr(lg, "logout_at", None)
-            if logout and lg.login_at:
-                diffs.append((logout - lg.login_at).total_seconds())
-        return sum(diffs) / len(diffs) if diffs else 0.0
-        sess = _rel(_sess(a), _sess(b))
-    return (reg * 0.4 + sess * 0.6) * 100.0
+    return _rel(_days(a), _days(b)) * 100.0
 
 
 # ---------------------------------------------------------------
@@ -393,9 +340,3 @@ def calculate_overall_similarity(db: Session, a: User, b: User, redis_client=Non
         except Exception:
             pass
     return result
-
-
-
-
-
-
