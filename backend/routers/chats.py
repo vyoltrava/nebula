@@ -172,14 +172,20 @@ def list_chats_v2(
     # Сортировка:
     # 1. Закреплённые чаты ВСЕГДА сверху
     # 2. Среди закреплённых — по времени закрепления (новые выше)
-    # 3. Среди незакреплённых — непрочитанные выше
-    # 4. Потом по дате последнего сообщения
+    # 3. Среди незакреплённых — по времени последней активности (сообщение/пост);
+    #    у каналов активность берётся из постов, у чатов без активности — дата создания
+    def _activity_ts(x):
+        lm = x.get("last_message")
+        if lm and lm.get("created_at"):
+            return datetime.fromisoformat(lm["created_at"]).timestamp()
+        ca = x.get("created_at")
+        return datetime.fromisoformat(ca).timestamp() if ca else 0
+
     def sort_key(x):
         is_pinned = 0 if x.get("pinned") else 1
         pinned_time = -(datetime.fromisoformat(x["pinned_at"]).timestamp()) if x.get("pinned_at") else 0
-        has_unread = 0 if x["unread_count"] > 0 else 1
-        last_msg_time = -(datetime.fromisoformat(x["last_message"]["created_at"]).timestamp()) if x.get("last_message") else 0
-        return (is_pinned, pinned_time, has_unread, last_msg_time)
+        last_msg_time = -_activity_ts(x)
+        return (is_pinned, pinned_time, last_msg_time)
 
     result.sort(key=sort_key)
     return result
@@ -226,9 +232,12 @@ async def create_group_chat(
 
     # Создатель = owner
     session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="owner"))
-    # Остальные = member
+    # Остальные = member (или роль из member_roles)
     for uid in valid_ids:
-        session.add(ChatMember(chat_id=chat.id, user_id=uid, role="member"))
+        role = (data.member_roles or {}).get(str(uid), "member")
+        if role not in ("member", "admin"):
+            role = "member"
+        session.add(ChatMember(chat_id=chat.id, user_id=uid, role=role))
         # Уведомление о добавлении в группу
         session.add(Notification(
             user_id=uid, actor_id=user.id,
@@ -275,6 +284,9 @@ def get_chat_members(
         {"user": user_out(users[m.user_id], session), "role": m.role,
          "joined_at": m.joined_at.isoformat() if m.joined_at else None}
         for m in members if m.user_id in users
+        # 🤖 ботов-участников показываем (BOT Company), скрываем только
+        # служебных воркеров отделов (без владельца)
+        and (not users[m.user_id].is_bot or _bot_has_owner(session, users[m.user_id].id))
     ]
 
 
@@ -297,8 +309,13 @@ async def add_group_member(
     can_manage = has_permission(actor, "manage_groups", session)   # 🆕
     if not actor_member and not can_manage:
         raise HTTPException(403, "Не участник чата")
-    if not can_manage and actor_member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Только админы группы или право manage_groups")
+    # 🔒 Приватность: кто может добавлять участников
+    can_add = getattr(chat, "can_add_members", "admins")
+    is_admin_actor = actor_member and actor_member.role in ("owner", "admin")
+    if not can_manage and not is_admin_actor and can_add != "members":
+        raise HTTPException(403, "Только админы группы могут добавлять участников")
+    if not can_manage and not actor_member:
+        raise HTTPException(403, "Не участник чата")
 
     existing = session.exec(
         select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user_id)
@@ -487,30 +504,25 @@ async def delete_chat(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Удалить чат (DM или группа)."""
-    chat = session.get(Chat, chat_id)
-    if not chat:
-        raise HTTPException(404, "Чат не найден")
-        
-    member = session.exec(
-        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
-    ).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
-        
-    # Для групп: создатель, админ сайта или право manage_groups
-    if chat.is_group and member.role != "owner" and not getattr(user, "is_admin", False) and not has_permission(user, "manage_groups", session):
-        raise HTTPException(403, "Только создатель или право manage_groups может удалить группу")
-        
-    # Собираем ID всех участников ДО удаления (для рассылки)
-    all_member_ids = session.exec(
-        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
-    ).all()
-    
+    """Удалить чат (DM или группа). Для DM — удаляет у обоих."""
     try:
-        # Каскадное удаление с правильным порядком (flush перед удалением чата)
+        chat = session.get(Chat, chat_id)
+        if not chat:
+            raise HTTPException(404, "Чат не найден")
+        member = session.exec(
+            select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
+        ).first()
+        if not member:
+            raise HTTPException(403, "Не участник")
+        # Для групп: создатель, админ сайта или право manage_groups
+        if chat.is_group and member.role != "owner" and not user.is_admin and not has_permission(user, "manage_groups", session):
+            raise HTTPException(403, "Только создатель или право manage_groups может удалить группу")
+        # Собираем ID всех участников ДО удаления (для рассылки)
+        all_member_ids = session.exec(
+            select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+        ).all()
+        # Каскадное удаление
         cascade_delete_chat(chat_id, session)
-        
         # 🆕 Рассылаем событие ВСЕМ бывшим участникам
         await manager.broadcast_to_users(
             list(all_member_ids),
@@ -518,6 +530,8 @@ async def delete_chat(
             {"chat_id": chat_id}
         )
         return {"ok": True}
+    except HTTPException:
+        raise
     except Exception as e:
         session.rollback()
         print(f"❌ Error deleting chat {chat_id}: {e}")
@@ -663,12 +677,14 @@ async def send_sticker_message(
     # 5. Рассылка
     sender = session.get(User, user.id)
     all_member_ids = session.exec(select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)).all()
+    ws_sender_name = sender.display_name if sender else "User"
+    ws_sender_avatar = sender.avatar_url if sender else None
     await manager.broadcast_to_users(list(all_member_ids), "new_message", {
         "id": msg.id,
         "chat_id": chat_id,
         "sender_id": user.id,
-        "sender_name": sender.display_name if sender else "User",
-        "sender_avatar": sender.avatar_url if sender else None,
+        "sender_name": ws_sender_name,
+        "sender_avatar": ws_sender_avatar,
         "text": msg.text,
         "media_url": msg.media_url,
         "media_type": msg.media_type,
@@ -891,6 +907,10 @@ async def upload_encrypted_media(
     if not chat.is_secret:
         raise HTTPException(400, "Шифрованное медиа только для секретных чатов")
 
+    err = check_size_before_read(file.headers, 50 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+
     content = await file.read()
     if len(content) > 50 * 1024 * 1024:
         raise HTTPException(400, "Файл слишком большой (макс 50 МБ)")
@@ -969,6 +989,8 @@ async def upload_encrypted_media(
 
     from push_service import send_push
     for other in other_members:
+        if _member_muted(chat_id, other.user_id, session):
+            continue  # 🔕 уведомления чата выключены
         asyncio.create_task(run_in_threadpool(
             send_push, other.user_id,
             "🔒 Секретное сообщение",
@@ -1007,8 +1029,52 @@ async def send_message_v2(
     if not chat:
         raise HTTPException(404, "Чат не найден")
 
+    # 🛡 ПРИВАТНОСТЬ: запрет на сообщения (только для личных чатов)
+    if not getattr(chat, "is_group", False):
+        _other_member = session.exec(
+            select(ChatMember).where(
+                ChatMember.chat_id == chat_id,
+                ChatMember.user_id != user.id,
+            )
+        ).first()
+        if _other_member:
+            _target_user = session.get(User, _other_member.user_id)
+            if _target_user and not _privacy_allows(_target_user, user.id, "messages", session):
+                raise HTTPException(403, "Пользователь запретил отправлять ему сообщения")
+
+    # 🛡️ Модерация: чат заблокирован админом / юзер в муте
+    if not user.is_admin and not user.is_moderator and not user.is_trelod:
+        blocked = session.get(SystemSetting, f"chat_blocked_{chat_id}")
+        if blocked and blocked.value == "1":
+            raise HTTPException(403, "Чат заблокирован администрацией")
+        mute = session.get(SystemSetting, f"chat_mute_{chat_id}_{user.id}")
+        if mute:
+            pass
+        # 🤖 BOT COMPANY: сообщение боту в чате → движок ботов
+        try:
+            from bots import handle_bot_message, handle_bot_creator_dm
+            from sticker_bot import handle_stickerbot_command
+            clean_text = (ciphertext or text or "").strip()
+            if clean_text.startswith("/"):
+                handled = handle_bot_creator_dm(session, user.id, clean_text) \
+                    if not getattr(chat, "is_group", False) else False
+                if not handled:
+                    handled = handle_stickerbot_command(
+                        session, chat_id, user.id, clean_text) \
+                        if not getattr(chat, "is_group", False) else False
+                if not handled:
+                    handle_bot_message(session, chat_id, user.id, clean_text)
+        except Exception as _be:
+            print("bot engine:", _be)
+            try:
+                if mute and datetime.fromisoformat(mute.value) > datetime.now(timezone.utc):
+                    raise HTTPException(403, "Вы в муте в этом чате")
+            except (ValueError, TypeError):
+                pass
+
     media_url = None
     media_type_final = None
+    is_encrypted_chat = getattr(chat, "is_secret", False)  # ← фикс UnboundLocalError для текстовых сообщений
     
     if file and file.filename:
         ext = os.path.splitext(file.filename or "")[1].lower()
@@ -1073,11 +1139,13 @@ async def send_message_v2(
             except Exception as e:
                 raise HTTPException(400, f"Upload failed: {str(e)}")
 
-    if chat.is_secret:
+        is_encrypted_chat = getattr(chat, "is_secret", False)
+
+    if is_encrypted_chat:
         if not ciphertext.strip() and not media_url:
             raise HTTPException(400, "Пустое сообщение")
         if text.strip():
-            raise HTTPException(400, "В секретных чатах нельзя отправлять plain text")
+            raise HTTPException(400, "В зашифрованных чатах нельзя отправлять plain text")
     else:
         if not text.strip() and not media_url:
             raise HTTPException(400, "Пустое сообщение")
@@ -1172,21 +1240,42 @@ async def send_message_v2(
             "sender_id": msg.sender_id,
             "sender_name": user.display_name,
             "sender_avatar": user.avatar_url,
+            "sender_prefix": user_prefix_out(session, user.id),
             "text": msg.text,
             "ciphertext": msg.ciphertext,
             "media_url": msg.media_url,
             "media_type": msg.media_type,
-            "is_encrypted_media": is_enc,  # 🆕
+            "is_encrypted_media": is_enc,
             "created_at": msg.created_at.isoformat(),
             "pinned": False,
             "pinned_by": None,
+            "reply_to_id": msg.reply_to_id,
+            "reply_preview": get_reply_preview(session, msg.reply_to_id) if msg.reply_to_id else None,
+            "reactions": [],
         },
         session,
     )
 
+    # 🤖 BOT API: сообщение боту → событие в очередь bot_update (getUpdates/webhook)
+    try:
+        from bot_api import notify_bots_in_chat
+        notify_bots_in_chat(session, chat_id, msg, user)
+    except Exception as _bapi:
+        print("bot_api hook:", _bapi)
+
+    # 🎨 StickerBot: картинка юзера → добавить в пак (после /addsticker <пак>)
+    if media_url and not chat.is_group and not chat.is_secret:
+        try:
+            from sticker_bot import handle_stickerbot_image
+            handle_stickerbot_image(session, chat_id, user.id, media_url, media_type_final)
+        except Exception as _sbe:
+            print("stickerbot image:", _sbe)
+
     # 🆕 PUSH-УВЕДОМЛЕНИЯ получателям
     from push_service import send_push
     for other in other_members:
+        if _member_muted(chat_id, other.user_id, session):
+            continue  # 🔕 уведомления чата выключены
         if chat.is_secret:
             asyncio.create_task(run_in_threadpool(
                 send_push, other.user_id,
@@ -1195,7 +1284,7 @@ async def send_message_v2(
                 f"/messages/{chat_id}",
             ))
         else:
-            body = (msg.text or ("📎 Вложение" if media_url else "Сообщение"))[:100]
+            body = _push_body(msg.text, media_url)
             asyncio.create_task(run_in_threadpool(
                 send_push, other.user_id,
                 f"💬 {user.display_name}",
@@ -1205,14 +1294,25 @@ async def send_message_v2(
 
     return {
         "id": msg.id,
+        "chat_id": chat_id,
         "sender_id": msg.sender_id,
+        "sender_name": user.display_name,
+        "sender_avatar": user.avatar_url,
+        "sender_prefix": user_prefix_out(session, user.id),
         "text": msg.text,
         "ciphertext": msg.ciphertext,
         "media_url": msg.media_url,
         "media_type": msg.media_type,
-        "is_encrypted_media": is_enc,  # 🆕
+        "is_encrypted_media": is_enc,
         "read": msg.read,
+        "edited": msg.edited,
+        "edited_at": msg.edited_at.isoformat() if msg.edited_at else None,
         "created_at": msg.created_at.isoformat(),
+        "pinned": False,
+        "pinned_by": None,
+        "reply_to_id": msg.reply_to_id,
+        "reply_preview": get_reply_preview(session, msg.reply_to_id) if msg.reply_to_id else None,
+        "reactions": [],
     }
 
 
@@ -1257,7 +1357,6 @@ async def send_live_text(
     session: Session = Depends(get_session),
 ):
     """🆕 ЖИВЫЕ СООБЩЕНИЯ с учётом приватности"""
-    # 🛡️ Пользователь выключил трансляцию своего набора — не шлём
     if not user.live_text_broadcast:
         return {"ok": True}
 
@@ -1267,7 +1366,6 @@ async def send_live_text(
     if not member:
         raise HTTPException(403, "Не участник чата")
 
-    # В секретных чатах не светим plaintext
     chat = session.get(Chat, chat_id)
     if chat and chat.is_secret:
         return {"ok": True}
@@ -1279,7 +1377,6 @@ async def send_live_text(
     if not other_ids:
         return {"ok": True}
 
-    # 🛡️ Шлём ТОЛЬКО тем, у кого включён показ живых сообщений
     recipients = session.exec(
         select(User.id).where(
             User.id.in_(other_ids),
@@ -1292,6 +1389,8 @@ async def send_live_text(
             "user_id": user.id,
             "user_name": user.display_name,
             "text": text[:2000],
+            "time": _chat_timestamp_now(user),
+            "timezone": getattr(user, "sender_timezone", None),
         })
     return {"ok": True}
 
@@ -1336,6 +1435,9 @@ def get_messages_v2(
     result = []
     for msg in messages:
         sender = senders.get(msg.sender_id)
+        sender_name = sender.display_name if sender else "Unknown"
+        sender_avatar = sender.avatar_url if sender else None
+        author_signature = None
         is_enc = bool(
             msg.media_url and
             not msg.media_url.startswith("http") and
@@ -1344,8 +1446,10 @@ def get_messages_v2(
         result.append({
             "id": msg.id,
             "sender_id": msg.sender_id,
-            "sender_name": sender.display_name if sender else "Unknown",
-            "sender_avatar": sender.avatar_url if sender else None,
+            "sender_name": sender_name,
+            "sender_avatar": sender_avatar,
+            "sender_prefix": user_prefix_out(session, msg.sender_id) if sender else None,
+            "author_signature": author_signature,
             "text": msg.text,
             "ciphertext": msg.ciphertext,
             "media_url": msg.media_url,
@@ -1430,21 +1534,18 @@ def delete_message(
         )
     ).first()
     if not member:
-        raise HTTPException(403, "Не участник чата")
+        raise HTTPException(403, "Not a member of this chat")
     
     msg = session.get(Message, message_id)
-    if not msg or msg.chat_id != chat_id:
-        raise HTTPException(404, "Сообщение не найдено")
-    
-    # Проверка прав на удаление
-    is_owner = msg.sender_id == user.id
+    if not msg:
+        raise HTTPException(404, "Message not found")
+    if msg.chat_id != chat_id:
+        raise HTTPException(403, "Message not in this chat")
     can_mod = has_permission(user, "manage_groups", session)
-    
-    if not is_owner and not user.is_admin and not can_mod:
-        raise HTTPException(403, "Можно удалять только свои сообщения")
-    
-    # Если удаляем чужое, проверяем иерархию
-    if not is_owner:
+    if msg.sender_id != user.id:
+        can_mod = has_permission(user, "manage_groups", session)
+        if not user.is_admin and not can_mod:
+            raise HTTPException(403, "Можно удалять только свои сообщения")
         sender = session.get(User, msg.sender_id)
         if sender:
             check_sanction_rights(user, sender, session, "удалять сообщения этого пользователя")
@@ -1553,7 +1654,9 @@ async def forward_message(
     # 9. Push-уведомления
     from push_service import send_push
     for other in other_members:
-        body = (new_msg.text or "📎 Вложение")[:100]
+        if _member_muted(target_chat_id, other.user_id, session):
+            continue  # 🔕 уведомления чата выключены
+        body = _push_body(new_msg.text, new_msg.media_type)
         asyncio.create_task(run_in_threadpool(
             send_push, other.user_id,
             f"💬 {user.display_name}",
@@ -1578,20 +1681,40 @@ async def pin_message(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    # 1. Проверяем, что пользователь участник чата
+    # 1. Получаем чат — ДО проверки членства: иначе при обращении к
+    #    несуществующему/удалённому чату человек получал бы бессмысленное
+    #    «Вы не участник чата» вместо честного 404.
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+
+    # 2. Проверяем, что пользователь участник чата.
+    #    🆕 Исключение: админ сайта или право pin_messages могут закреплять
+    #    даже без записи в ChatMember (модерация и т.п.).
     member = session.exec(
         select(ChatMember).where(
             ChatMember.chat_id == chat_id,
             ChatMember.user_id == user.id,
         )
     ).first()
-    has_pin_right = has_permission(user, "pin_messages", session)
-    if (not member or member.role not in ("owner", "admin")) and not has_pin_right:
-        raise HTTPException(403, "Только админы группы или владельцы права pin_messages")
-    # 2. Получаем чат
-    chat = session.get(Chat, chat_id)
-    if not chat:
-        raise HTTPException(404, "Чат не найден")
+    can_site_pin = has_permission(user, "pin_messages", session)
+    if not member and not can_site_pin:
+        raise HTTPException(403, "Вы не участник чата")
+
+    # 3. Права закрепления:
+    #    • Личный/секретный чат («Избранное» тоже) — ЛЮБОЙ участник:
+    #      если пользователь видит чат и может отправлять в него сообщения,
+    #      он может закреплять;
+    #    • Группа — владелец или админ группы (либо сайт-право
+    #      pin_messages / manage_groups). Обычному участнику — ПОНЯТНАЯ
+    #      ошибка вместо вводящего в заблуждение отказа.
+    if bool(chat.is_group):
+        is_group_admin = (
+            (member is not None and member.role in ("owner", "admin"))
+            or chat.owner_id == user.id
+        )
+        if not is_group_admin and not (can_site_pin or has_permission(user, "manage_groups", session)):
+            raise HTTPException(403, "Закрепление сообщений доступно только администраторам")
     
 
     
@@ -1600,6 +1723,10 @@ async def pin_message(
     if not msg or msg.chat_id != chat_id:
         raise HTTPException(404, "Сообщение не найдено")
     
+    # 🆕 Повторное закрепление того же сообщения — не ошибка
+    if msg.pinned:
+        return {"ok": True, "already_pinned": True}
+
     # 5. Считаем уже закреплённые (макс 5)
     pinned_count = session.exec(
         select(func.count(Message.id)).where(
@@ -1743,39 +1870,55 @@ async def unpin_message(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    # 1. Проверяем, что пользователь участник чата
+    # 1. Чат — ДО проверки членства (см. pin_message)
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+
+    # 2. Участник? (админ сайта / право pin_messages — исключение)
     member = session.exec(
         select(ChatMember).where(
             ChatMember.chat_id == chat_id,
             ChatMember.user_id == user.id,
         )
     ).first()
-    has_pin_right = has_permission(user, "pin_messages", session)
-    if (not member or member.role not in ("owner", "admin")) and not has_pin_right:
-        raise HTTPException(403, "Только админы группы или владельцы права pin_messages")
-    
-    # 2. Получаем чат
-    chat = session.get(Chat, chat_id)
-    if not chat:
-        raise HTTPException(404, "Чат не найден")
-    
-    
+    can_site_pin = has_permission(user, "pin_messages", session)
+    if not member and not can_site_pin:
+        raise HTTPException(403, "Вы не участник чата")
+
+    # 3. Права открепления — те же, что и на закрепление
+    if bool(chat.is_group):
+        is_group_admin = (
+            (member is not None and member.role in ("owner", "admin"))
+            or chat.owner_id == user.id
+        )
+        if not is_group_admin and not (can_site_pin or has_permission(user, "manage_groups", session)):
+            raise HTTPException(403, "Открепление сообщений доступно только администраторам")
+
     # 4. Получаем сообщение
     msg = session.get(Message, message_id)
     if not msg or msg.chat_id != chat_id:
         raise HTTPException(404, "Сообщение не найдено")
-    
-    # 5. Проверяем права: либо ты закрепил, либо ты админ
-    if msg.pinned_by != user.id and member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Вы не закрепляли это сообщение и не являетесь админом")
-    
-    # 6. Открепляем
+
+    # 5. Открепляем (повторный вызов — не ошибка)
+    if not msg.pinned:
+        return {"ok": True, "already_unpinned": True}
     msg.pinned = False
     msg.pinned_at = None
     msg.pinned_by = None
     session.add(msg)
     session.commit()
-    
+
+    # 6. Уведомляем участников через WS (как при pin — консистентность UI)
+    all_member_ids = session.exec(
+        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+    ).all()
+    await manager.broadcast_to_users(
+        [m for m in all_member_ids],
+        "message_unpinned",
+        {"chat_id": chat_id, "message_id": message_id, "unpinned_by": user.id},
+    )
+
     return {"ok": True}
 
 
@@ -1815,6 +1958,10 @@ async def upload_group_avatar(
     if ext not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
         raise HTTPException(400, f"Неверный формат: {ext}. Поддерживаются: .jpg, .jpeg, .png, .gif, .webp")
     
+    err = check_size_before_read(file.headers, 5 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+
     content = await file.read()
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(400, "Файл слишком большой (максимум 5 МБ)")
@@ -1835,7 +1982,7 @@ async def upload_group_avatar(
                 content,
                 folder=UPLOAD_FOLDER,
                 resource_type="image",
-                transformation=[{"width": 400, "height": 400, "crop": "fill"}],
+                transformation=[{"width": 1024, "height": 1024, "crop": "limit", "quality": 90}],
             )
         )
         chat.avatar_url = result.get("secure_url")
@@ -2044,13 +2191,150 @@ async def websocket_endpoint(websocket: WebSocket):
     await run_in_threadpool(_update_last_seen_sync, user_id)
     
     try:
-        # 7. Держим соединение открытым
+        # 7. Держим соединение открытым + 📞 РЕТРАНСЛЯЦИЯ СИГНАЛОВ ЗВОНКОВ
+        #
+        # 🔄 ИЗМЕНЕНО (fix WebRTC signaling): старый цикл обрабатывал ТОЛЬКО
+        # "ping" и молча отбрасывал все остальные сообщения, из-за чего
+        # SDP-offer/answer и ICE-кандидаты никогда не доходили до собеседника.
+        # Старый код (для отката через git history):
+        #   while True:
+        #       data = await websocket.receive_text()
+        #       if data == "ping":
+        #           await websocket.send_text(json.dumps({"event": "pong"}))
         while True:
-            data = await websocket.receive_text()
-            if data == "ping":
+            raw = await websocket.receive_text()
+
+            # Keep-alive (как раньше)
+            if raw == "ping":
                 await websocket.send_text(json.dumps({"event": "pong"}))
+                continue
+
+            # Все остальные сообщения — это JSON-сигналы WebRTC
+            try:
+                msg = json.loads(raw)
+                if not isinstance(msg, dict):
+                    raise ValueError("not an object")
+            except (ValueError, TypeError):
+                print(f"⚠️ WS: non-JSON message from user {user_id}: {raw[:120]}")
+                continue
+
+            mtype = msg.get("type")
+            target_id = msg.get("target_user_id")
+
+            # --- call_initiate: сервер генерирует call_id и рассылает обеим сторонам.
+            # Фронтенд НЕ генерирует call_id сам: инициатор ждёт его в 'call_initiated'
+            # (useWebRTC.ts case 'call_initiated'), вызываемый ждёт его в 'call_incoming'.
+            if mtype == "call_initiate":
+                if not isinstance(target_id, int):
+                    continue
+                # 🛡 ПРИВАТНОСТЬ: проверяем, может ли инициатор звонить адресату.
+                # ⚠️ ОБОРОНИТЕЛЬНО: любая ошибка здесь (нет миграции, недоступна БД)
+                # раньше роняла ВЕСЬ WS-цикл -> обрыв сокета звонящего, звонок не
+                # начинался и пуш «пропущенный» не уходил. Теперь fail-open.
+                _blocked = False
+                try:
+                    with Session(engine) as _s:
+                        _target_user = _s.get(User, target_id)
+                        if _target_user and not _privacy_allows(_target_user, user_id, "calls", _s):
+                            _blocked = True
+                            print(f"[📞 PRIVACY] call_initiate {user_id} -> {target_id} BLOCKED (allow_calls={_target_user.allow_calls})")
+                except Exception as _pe:  # noqa: BLE001
+                    print(f"[📞 PRIVACY] check failed (fail-open): {_pe}")
+
+                if _blocked:
+                    await manager.send_to_user(user_id, "call_rejected", {
+                        "call_id": "",
+                        "reason": "privacy_blocked",
+                    })
+                    continue
+
+                call_id = f"call-{user_id}-{target_id}-{uuid.uuid4().hex[:8]}"
+                # 1) Входящий вызов адресату (useWebRTC.ts case 'call_incoming')
+                delivered = await manager.send_to_user(target_id, "call_incoming", {
+                    "call_id": call_id,
+                    "call_type": msg.get("call_type", "audio"),
+                    "caller_id": user_id,
+                    "caller_name": msg.get("caller_name", ""),
+                    "caller_avatar": msg.get("caller_avatar", ""),
+                })
+                # 2) Подтверждение инициатору (useWebRTC.ts case 'call_initiated')
+                await manager.send_to_user(user_id, "call_initiated", {
+                    "call_id": call_id,
+                    "target_user_id": target_id,
+                })
+                # 3) 🔔 Адресат офлайн — доставляем звонок ПУШЕМ (как push-уведомления,
+                #    звонок проходит всегда, независимо от онлайна). По приходу пуша
+                #    пользователь открывает приложение и может перезвонить.
+                if not delivered:
+                    from push_service import send_push
+                    _ct = "видеозвонок" if msg.get("call_type", "audio") == "video" else "аудиозвонок"
+                    _caller_name = msg.get("caller_name") or "Пользователь"
+                    print(f"[📞 OFFLINE] {target_id} офлайн — отправляю push о пропущенном звонке")
+                    asyncio.create_task(run_in_threadpool(
+                        send_push,
+                        target_id,
+                        "📞 Пропущенный звонок",
+                        f"{_caller_name}: пропущенный {_ct}. Нажмите, чтобы перезвонить.",
+                        "/messages",
+                        "call",
+                    ))
+                continue
+
+            # --- Остальные сигналы: релей адресату «как есть».
+            # Маппинг имён клиент -> сервер -> клиент сверен с подписками
+            # в l_frontend/components/WebSocketProvider.tsx (call_accepted /
+            # call_rejected / call_ended / call_offer / call_answer / call_ice_candidate).
+            if mtype in ("call_accept", "call_reject", "call_end",
+                         "call_offer", "call_answer", "call_ice_candidate"):
+                if not isinstance(target_id, int):
+                    continue
+                out_event = {
+                    "call_accept": "call_accepted",
+                    "call_reject": "call_rejected",
+                    "call_end": "call_ended",
+                }.get(mtype, mtype)
+                payload = {
+                    k: v for k, v in msg.items()
+                    if k not in ("type", "target_user_id")
+                }
+                # 📞 ДИАГНОСТИКА ЗВОНКОВ: каждое релеированное событие видно в
+                # логах сервера. send_to_user теперь сообщает, было ли хотя бы
+                # одно ЖИВОЕ соединение у адресата — иначе честно пишем
+                # TARGET OFFLINE (например, собеседник перезагрузил страницу
+                # сразу после нажатия «Принять»).
+                _sdp = payload.get("sdp")
+                sdp_len = len(_sdp.get("sdp", "")) if isinstance(_sdp, dict) else 0
+                suffix = f" sdp={sdp_len}b" if mtype in ("call_offer", "call_answer") else ""
+                print(f"[📞 RELAY] {mtype}: {user_id} -> {target_id}{suffix}")
+                try:
+                    ok = await manager.send_to_user(target_id, out_event, payload)
+                    if ok:
+                        print(f"[📞 RELAY] {mtype}: {user_id} -> {target_id} delivered")
+                    else:
+                        print(
+                            f"[📞 RELAY] {mtype}: {user_id} -> {target_id} "
+                            "⚠️ TARGET OFFLINE — сообщение НЕ доставлено!"
+                        )
+                except Exception as e:  # noqa: BLE001 — мёртвый получатель не должен ронять сокет отправителя
+                    print(f"[📞 RELAY] {mtype}: {user_id} -> {target_id} FAILED: {e}")
+                continue
+
+            print(f"⚠️ WS: unknown/unroutable signal '{mtype}' from user {user_id}")
     except WebSocketDisconnect:
+        # Штатное отключение клиента
         await manager.disconnect(websocket, user_id)
+    except RuntimeError as e:
+        # 🛡 FIX (zombie-loop): Starlette бросает RuntimeError('Cannot call
+        # "receive" once a disconnect message has been received'), когда сокет
+        # уже мёртв — частая ситуация при флапающей сети. Раньше ниже торчал
+        # старый ping-only цикл, который делал повторный receive() по трупу
+        # сокета и сыпал «❌ WS error» в лог. Старый цикл удалён; здесь же
+        # штатно выходим без шума.
+        if "disconnect" in str(e).lower():
+            await manager.disconnect(websocket, user_id)
+        else:
+            print(f"❌ WS error for user {user_id}: {e}")
+            await manager.disconnect(websocket, user_id)
     except Exception as e:
         print(f"❌ WS error for user {user_id}: {e}")
         await manager.disconnect(websocket, user_id)

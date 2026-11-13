@@ -503,7 +503,7 @@ def qr_login_request(request: Request):
     code = secrets.token_urlsafe(24)
     _QR_LOGIN_CODES[code] = {"status": "pending", "user_id": None, "exp": time.time() + _QR_LOGIN_TTL}
     # QR должен вести на ФРОНТЕНД (не на API) — иначе скан не откроет подтверждение.
-    front = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    front = FRONTEND_URL.rstrip("/")
     qr_url = f"{front}/login?action=qrconfirm&code={code}"
     return {"code": code, "qr_url": qr_url, "expires_in": _QR_LOGIN_TTL}
 

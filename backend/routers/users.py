@@ -19,7 +19,7 @@ def logout_all(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    user.token_version += 1  # все старые токены становятся невалидными
+    user.token_version = getattr(user, "token_version", 0) + 1  # все старые токены становятся невалидными
     session.add(user)
     session.commit()
     return {"ok": True}
@@ -36,9 +36,31 @@ def update_profile(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    user.display_name = data.display_name
+    changed = False
+
+    # display_name — только если реально изменился
+    if data.display_name is not None and data.display_name != user.display_name:
+        old_name = user.display_name
+        user.display_name = data.display_name
+        session.add(NickHistory(
+            user_id=user.id,
+            field="display_name",
+            old_value=old_name or "",
+            new_value=data.display_name or "",
+            changed_by=user.id,
+        ))
+        changed = True
+
+    # bio — только если передали (может быть пустым для очистки)
     if data.bio is not None:
         user.bio = data.bio.strip()[:500] if data.bio.strip() else None
+        changed = True
+
+    if not changed:
+        # Ничего не меняли — не пишем NickHistory и не трогаем сессию без нужды
+        session.refresh(user)
+        return user_out(user, session)
+
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -46,7 +68,9 @@ def update_profile(
 
 
 @router.post("/api/me/password")
+@limiter.limit("5/minute")
 def change_password(
+    request: Request,
     data: ChangePasswordIn,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
@@ -116,6 +140,13 @@ async def upload_avatar(
     content = await file.read()
     actual_size = len(content)
     print(f"  actual_size: {actual_size} bytes ({actual_size / (1024*1024):.2f} MB)")
+
+    # 🛡️ Magic bytes check: real file type, not client-declared extension
+    ok, verr = validate_upload(content[:16], file.filename, file.content_type,
+                               allowed_categories={"image"},
+                               allowed_exts={".jpg", ".jpeg", ".png", ".gif", ".webp"})
+    if not ok:
+        raise HTTPException(400, verr)
     
     if actual_size > 5 * 1024 * 1024:
         print(f"  ❌ File too large: {actual_size} bytes")
@@ -136,14 +167,27 @@ async def upload_avatar(
     # Загружаем новую
     try:
         print(f"  Uploading to Cloudinary...")
-        result = await run_in_threadpool(
-            lambda: cloudinary.uploader.upload(
-                content,
-                folder=UPLOAD_FOLDER,
-                resource_type="image",
-                transformation=[{"width": 400, "height": 400, "crop": "fill"}],
+        is_gif = ext == ".gif" or (file.content_type or "") == "image/gif"
+        if is_gif:
+            # 🎞 GIF: без трансформаций — сохраняем анимацию и исходное качество
+            result = await run_in_threadpool(
+                lambda: cloudinary.uploader.upload(
+                    content,
+                    folder=UPLOAD_FOLDER,
+                    resource_type="image",
+                )
             )
-        )
+        else:
+            # 🖼 Статичные: уменьшаем только если больше 1024px, сохраняем пропорции
+            # и ОРИГИНАЛЬНЫЙ формат + явное качество 90 (без «мыла» от quality:auto).
+            result = await run_in_threadpool(
+                lambda: cloudinary.uploader.upload(
+                    content,
+                    folder=UPLOAD_FOLDER,
+                    resource_type="image",
+                    transformation=[{"width": 1024, "height": 1024, "crop": "limit", "quality": 90}],
+                )
+            )
         user.avatar_url = result.get("secure_url")
         print(f"  ✅ Cloudinary upload success: {user.avatar_url}")
     except Exception as e:
@@ -171,10 +215,25 @@ async def upload_cover(
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in {".jpg", ".jpeg", ".png", ".webp"}:
         raise HTTPException(400, f"Неверный формат: {ext}. GIF для обложки не поддерживается.")
-    
+
+    # 🛡️ Проверяем размер ДО чтения + magic bytes
+    err = check_size_before_read(file.headers, 10 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+
+    err = check_size_before_read(file.headers, 10 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+
     content = await file.read()
     if len(content) > 10 * 1024 * 1024:
         raise HTTPException(400, f"Файл слишком большой (максимум 10 МБ)")
+
+    ok, verr = validate_upload(content[:16], file.filename, file.content_type,
+                               allowed_categories={"image"},
+                               allowed_exts={".jpg", ".jpeg", ".png", ".webp"})
+    if not ok:
+        raise HTTPException(400, verr)
     
     # Удаляем старую обложку
     if user.cover_url and "cloudinary.com" in user.cover_url:
@@ -185,14 +244,15 @@ async def upload_cover(
         except Exception:
             pass
     
-    # Загружаем новую (широкий формат 1500x500)
+    # Загружаем новую (уменьшаем только если шире 1920px, сохраняем пропорции и кадрирование
+    # оставляем CSS object-cover — без обрезки на сервере и без агрессивного auto-сжатия)
     try:
         result = await run_in_threadpool(
             lambda: cloudinary.uploader.upload(
                 content,
                 folder=UPLOAD_FOLDER,
                 resource_type="image",
-                transformation=[{"width": 1500, "height": 500, "crop": "fill"}],
+                transformation=[{"width": 1920, "height": 1080, "crop": "limit", "quality": 90}],
             )
         )
         user.cover_url = result.get("secure_url")
@@ -240,6 +300,7 @@ def recommended_users(
         .outerjoin(Follow, Follow.followee_id == User.id)
         .where(
             User.is_banned == False,
+            User.is_bot == False,  # 🤖 боты не рекомендуем в правой панели
             User.id != user.id,
             ~User.id.in_(followed_ids)
         )
@@ -250,8 +311,9 @@ def recommended_users(
 
     results = session.exec(query).all()
 
+    _pre = batch_get_users([u for u, _ in results], session)
     return [
-        {**user_out(user_obj, session), "followers_count": count}
+        {**user_out(user_obj, session, _pre.get(user_obj.id)), "followers_count": count}
         for user_obj, count in results
     ]
 
@@ -270,6 +332,7 @@ def search_users_by_query(
     users = session.exec(
         select(User)
         .where(
+            User.is_bot == False,  # 🤖 системный бот не в поиске
             User.username.ilike(pattern) | User.display_name.ilike(pattern)  # 🚀 ilike вместо func.lower().like()
         )
         .limit(limit)
@@ -286,9 +349,10 @@ def search_users_by_query(
         .limit(limit)
     ).all()
 
+    _pre = batch_get_users(users, session)
     if not posts:
         return {
-            "users": [user_out(u, session) for u in users],
+            "users": [user_out(u, session, _pre.get(u.id)) for u in users],
             "posts": []
         }
 
@@ -331,12 +395,15 @@ def search_users_by_query(
             "media_url": p.media_url,
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": False,
+            "dislikes_count": 0,
+            "disliked_by_me": False,
             "replies_count": replies_counts.get(p.id, 0),
             "media_type": p.media_type,  # 🆕
         })
 
+    _pre = batch_get_users(users, session)
     return {
-        "users": [user_out(u, session) for u in users],
+        "users": [user_out(u, session, _pre.get(u.id)) for u in users],
         "posts": result_posts
     }
 
@@ -396,8 +463,15 @@ def is_following(
 
 
 @router.get("/api/users/{identifier}")
-def get_user_profile(identifier: str, session: Session = Depends(get_session)):
+def get_user_profile(
+    identifier: str,
+    viewer: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
     user = resolve_user(identifier, session)
+    # 🛡 Приватный аккаунт: неавторизованные и не-подписчики видят только замок
+    if not _can_view_profile(viewer, user, session):
+        return _profile_locked_response(user)
     followers_count = session.exec(
         select(func.count()).select_from(Follow).where(Follow.followee_id == user.id)
     ).one()
@@ -417,7 +491,11 @@ def get_user_profile(identifier: str, session: Session = Depends(get_session)):
 
 
 @router.get("/api/users/by-username/{username}")
-def get_user_by_username(username: str, session: Session = Depends(get_session)):
+def get_user_by_username(
+    username: str,
+    viewer: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
     """Получить профиль пользователя по username (без @)"""
     # Убираем @ если пользователь передал с ним
     clean_username = username.lstrip("@").lower()
@@ -429,6 +507,10 @@ def get_user_by_username(username: str, session: Session = Depends(get_session))
     if not user:
         raise HTTPException(404, "User not found")
     
+    # 🛡 Приватный аккаунт: замок для неавторизованных и не-подписчиков
+    if not _can_view_profile(viewer, user, session):
+        return _profile_locked_response(user)
+
     # Возвращаем те же данные, что и обычный профиль
     followers_count = session.exec(
         select(func.count()).select_from(Follow).where(Follow.followee_id == user.id)
@@ -454,9 +536,13 @@ def get_user_posts(
     identifier: str,
     cursor: Optional[int] = None,
     limit: int = 20,
+    viewer: Optional[User] = Depends(get_optional_user),
     session: Session = Depends(get_session),
 ):
     user = resolve_user(identifier, session)
+    # 🛡 Приватный аккаунт: посты видят только подписчики (+ staff с manage_users)
+    if not _can_view_profile(viewer, user, session):
+        raise HTTPException(403, "Приватный аккаунт")
     query = (
         select(Post)
         .where(Post.author_id == user.id, Post.reply_to_id == None)
@@ -497,6 +583,23 @@ def get_user_posts(
         .where(Post.reply_to_id.in_(post_ids))
         .group_by(Post.reply_to_id)
     ).all())
+
+    dislikes_counts = dict(session.exec(
+        select(Dislike.post_id, func.count(Dislike.id))
+        .where(Dislike.post_id.in_(post_ids))
+        .group_by(Dislike.post_id)
+    ).all())
+
+    # 🆕 Загрузка лайков и дизлайков текущего пользователя (viewer)
+    liked_ids = set()
+    disliked_ids = set()
+    if viewer:
+        liked_ids = set(session.exec(
+            select(Like.post_id).where(Like.user_id == viewer.id, Like.post_id.in_(post_ids))
+        ).all())
+        disliked_ids = set(session.exec(
+            select(Dislike.post_id).where(Dislike.user_id == viewer.id, Dislike.post_id.in_(post_ids))
+        ).all())
 
     # 🆕 Массовая загрузка оригинальных постов для репостов
     repost_ids = list({p.repost_of_id for p in posts if p.repost_of_id})
@@ -562,10 +665,13 @@ def get_user_posts(
             "text": p.text,
             "media_url": p.media_url,
             "likes_count": likes_counts.get(p.id, 0),
-            "liked_by_me": False,
+            "liked_by_me": p.id in liked_ids,
+            "dislikes_count": dislikes_counts.get(p.id, 0),
+            "disliked_by_me": p.id in disliked_ids,
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
             "media_type": p.media_type,  # 🆕
             "repost_of": repost_data,      # 🆕
             "is_repost": is_repost,         # 🆕
@@ -583,8 +689,20 @@ def get_user_posts(
 
 
 @router.get("/api/users/{identifier}/followers")
-def get_followers(identifier: str, session: Session = Depends(get_session)):
+def get_followers(
+    identifier: str,
+    viewer: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
     user = resolve_user(identifier, session)
+    # 🛡 Приватный аккаунт или скрытый список подписчиков — только для себя/staff
+    if not _can_view_profile(viewer, user, session):
+        raise HTTPException(403, "Приватный аккаунт")
+    if getattr(user, "hide_followers", False) and (
+        viewer is None or (viewer.id != user.id and not viewer.is_admin and not viewer.is_moderator
+                           and not has_permission(viewer, "manage_users", session))
+    ):
+        raise HTTPException(403, "Список подписчиков скрыт настройками приватности")
     follows = session.exec(
         select(Follow).where(Follow.followee_id == user.id)
     ).all()
@@ -597,12 +715,25 @@ def get_followers(identifier: str, session: Session = Depends(get_session)):
         select(User).where(User.id.in_(user_ids))
     ).all()
     
-    return [user_out(u, session) for u in users]
+    _pre = batch_get_users(users, session)
+    return [user_out(u, session, _pre.get(u.id)) for u in users]
 
 
 @router.get("/api/users/{identifier}/following")
-def get_following(identifier: str, session: Session = Depends(get_session)):
+def get_following(
+    identifier: str,
+    viewer: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
     user = resolve_user(identifier, session)
+    # 🛡 Приватный аккаунт или скрытый список «читает» — только для себя/staff
+    if not _can_view_profile(viewer, user, session):
+        raise HTTPException(403, "Приватный аккаунт")
+    if getattr(user, "hide_following", False) and (
+        viewer is None or (viewer.id != user.id and not viewer.is_admin and not viewer.is_moderator
+                           and not has_permission(viewer, "manage_users", session))
+    ):
+        raise HTTPException(403, "Список подписок скрыт настройками приватности")
     follows = session.exec(
         select(Follow).where(Follow.follower_id == user.id)
     ).all()
@@ -615,7 +746,8 @@ def get_following(identifier: str, session: Session = Depends(get_session)):
         select(User).where(User.id.in_(user_ids))
     ).all()
     
-    return [user_out(u, session) for u in users]
+    _pre = batch_get_users(users, session)
+    return [user_out(u, session, _pre.get(u.id)) for u in users]
 
 
 @router.post("/api/users/{user_id}/role")
@@ -625,33 +757,54 @@ def assign_role(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    if not has_permission(staff, "manage_roles", session):
-        raise HTTPException(403, "No permission: manage_roles")
-    
+    can_manage = has_permission(staff, "manage_roles", session)
+    can_assign = has_permission(staff, "assign_roles", session)
+    if not can_manage and not can_assign:
+        raise HTTPException(403, "Нет права: manage_roles или assign_roles")
+
     target = session.get(User, user_id)
     if not target:
         raise HTTPException(404, "User not found")
     protect_system_account(target, staff, "менять роль")
-    
-    # 🛡️ Единый иммунитет
+
     if target.id != staff.id:
         check_sanction_rights(staff, target, session, "изменять роль этого пользователя")
-    
-    # Если назначается роль — проверяем её уровень
-    if role_id:
-        role = session.get(Role, role_id)
-        if not role:
-            raise HTTPException(404, "Role not found")
-        max_lvl = max_level_for(staff, session)
-        if role.level > max_lvl:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Нельзя назначить роль с уровнем {role.level} (ваш максимум: {max_lvl})"
-            )
-    
+
+    # 🆕 Founder (уровень 10+) может надеть на себя ЛЮБУЮ роль (обход иерархии отделов/уровней)
+    is_self = target.id == staff.id
+    self_founder = is_self and get_user_level(staff, session) >= 10
+
+    if not self_founder:
+        allowed_ids = {r.id for r in assignable_roles_for(staff, session)}
+        if role_id:
+            if role_id not in allowed_ids:
+                raise HTTPException(403, "Эту роль назначить нельзя: уровень или чужой отдел")
+        else:
+            # Снятие роли: лидер может снять только ту, которую сам мог выдать
+            if not can_manage and target.role_id and target.role_id not in allowed_ids:
+                raise HTTPException(403, "Недостаточно прав, чтобы снять эту роль")
+
+    old_role_id = target.role_id
     target.role_id = role_id
     session.add(target)
     session.commit()
+
+    session.add(RoleHistory(
+        user_id=target.id,
+        old_role_id=old_role_id,
+        new_role_id=role_id,
+        changed_by=staff.id,
+    ))
+    session.commit()
+
+    # 🔄 Плашка → рабочий чат отдела: получил staff-роль — добавили в чат,
+    #    снял — убрали из чата.
+    try:
+        from work_chats import sync_user_work_membership
+        sync_user_work_membership(session, target, staff)
+    except Exception as _e:
+        print("work membership sync:", _e)
+
     return {"ok": True}
 
 
@@ -796,24 +949,29 @@ def get_user_posts_by_username(
     username: str,
     cursor: Optional[int] = None,
     limit: int = 20,
+    viewer: Optional[User] = Depends(get_optional_user),
     session: Session = Depends(get_session),
 ):
     """Получить посты пользователя по username"""
     clean_username = username.lstrip("@").lower()
-    
+
     user = session.exec(
         select(User).where(func.lower(User.username) == clean_username)
     ).first()
-    
+
     if not user:
         raise HTTPException(404, "User not found")
-    
+
     # Используем ту же логику, что и get_user_posts
-    return get_user_posts(str(user.id), cursor, limit, session)
+    return get_user_posts(str(user.id), cursor, limit, viewer, session)
 
 
 @router.get("/api/users/by-username/{username}/followers")
-def get_followers_by_username(username: str, session: Session = Depends(get_session)):
+def get_followers_by_username(
+    username: str,
+    viewer: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
     """Получить подписчиков по username"""
     clean_username = username.lstrip("@").lower()
     
@@ -824,11 +982,15 @@ def get_followers_by_username(username: str, session: Session = Depends(get_sess
     if not user:
         raise HTTPException(404, "User not found")
     
-    return get_followers(str(user.id), session)
+    return get_followers(str(user.id), viewer, session)
 
 
 @router.get("/api/users/by-username/{username}/following")
-def get_following_by_username(username: str, session: Session = Depends(get_session)):
+def get_following_by_username(
+    username: str,
+    viewer: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
     """Получить подписки по username"""
     clean_username = username.lstrip("@").lower()
     
@@ -839,7 +1001,7 @@ def get_following_by_username(username: str, session: Session = Depends(get_sess
     if not user:
         raise HTTPException(404, "User not found")
     
-    return get_following(str(user.id), session)
+    return get_following(str(user.id), viewer, session)
 
 
 @router.get("/api/users/by-username/{username}/is-following")
@@ -973,4 +1135,3 @@ async def update_privacy_settings(
         "hide_following": getattr(user, "hide_following", False),
         "hide_followers": getattr(user, "hide_followers", False),
     }
-

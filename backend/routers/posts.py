@@ -69,6 +69,12 @@ def get_following_posts(
         .group_by(Post.reply_to_id)
     ).all())
 
+    dislikes_counts = dict(session.exec(
+        select(Dislike.post_id, func.count(Dislike.id))
+        .where(Dislike.post_id.in_(post_ids))
+        .group_by(Dislike.post_id)
+    ).all())
+
     liked_ids = set(session.exec(
         select(Like.post_id).where(Like.user_id == user.id, Like.post_id.in_(post_ids))
     ).all())
@@ -76,6 +82,10 @@ def get_following_posts(
     # ... (предыдущий код функции) ...
     bookmarked_ids = set(session.exec(
         select(Bookmark.post_id).where(Bookmark.user_id == user.id, Bookmark.post_id.in_(post_ids))
+    ).all())
+
+    disliked_ids = set(session.exec(
+        select(Dislike.post_id).where(Dislike.user_id == user.id, Dislike.post_id.in_(post_ids))
     ).all())
 
     # 🆕 Массовая загрузка оригинальных постов для репостов
@@ -136,10 +146,13 @@ def get_following_posts(
             "text": p.text, "media_url": p.media_url,
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": p.id in liked_ids,
+            "dislikes_count": dislikes_counts.get(p.id, 0),
+            "disliked_by_me": p.id in disliked_ids,
             "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
             "media_type": p.media_type,  # 🆕
             "repost_of": repost_data,
             "is_repost": is_repost,
@@ -206,10 +219,13 @@ def get_liked_posts(
             "media_url": p.media_url,
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": True,
+            "dislikes_count": 0,
+            "disliked_by_me": False,
             "replies_count": 0,
             "views_count": p.views_count or 0,
             "media_type": p.media_type,  # 🆕
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
         })
     return result
 
@@ -295,11 +311,14 @@ def get_replies(post_id: int, session: Session = Depends(get_session)):
             "media_url": p.media_url,
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": False,
+            "dislikes_count": 0,
+            "disliked_by_me": False,
             "replies_count": replies_counts.get(p.id, 0),
             "reply_to_id": p.reply_to_id,
             "parent": parent_info,
             "media_type": p.media_type,  # 🆕
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
         })
 
     return result
@@ -356,9 +375,11 @@ def get_echo_tree(post_id: int, session: Session = Depends(get_session)):
             "text": p.text,
             "media_url": p.media_url,
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
             "repost_of_id": p.repost_of_id,
             "is_quote": bool(p.text.strip()),
             "likes_count": likes_map.get(p.id, 0),
+            "dislikes_count": 0,
         })
     return result
 
@@ -375,13 +396,16 @@ def get_single_post(
     
     author = session.get(User, post.author_id)
     likes_count = session.exec(select(func.count()).select_from(Like).where(Like.post_id == post_id)).one()
+    dislikes_count = session.exec(select(func.count()).select_from(Dislike).where(Dislike.post_id == post_id)).one()
     replies_count = session.exec(select(func.count()).select_from(Post).where(Post.reply_to_id == post_id)).one()
     
     liked_by_me = False
     bookmarked = False
+    disliked_by_me = False
     if viewer:
         liked_by_me = session.exec(select(Like).where(Like.user_id == viewer.id, Like.post_id == post_id)).first() is not None
         bookmarked = session.exec(select(Bookmark).where(Bookmark.user_id == viewer.id, Bookmark.post_id == post_id)).first() is not None
+        disliked_by_me = session.exec(select(Dislike).where(Dislike.user_id == viewer.id, Dislike.post_id == post_id)).first() is not None
 
     repost_data = None
     is_repost = False
@@ -400,6 +424,7 @@ def get_single_post(
                 "author_role": get_author_role(orig_author, session) if orig_author else None,
                 "text": orig.text, "media_url": orig.media_url,
                 "media_type": orig.media_type, "created_at": orig.created_at.isoformat(),
+                "edited_at": orig.edited_at.isoformat() if orig.edited_at else None,
             }
             is_repost = not post.text.strip()
             is_quote = bool(post.text.strip())
@@ -419,8 +444,10 @@ def get_single_post(
         "author_role": get_author_role(author, session) if author else None,
         "text": post.text, "media_url": post.media_url, "media_type": post.media_type,
         "likes_count": likes_count, "liked_by_me": liked_by_me, "bookmarked": bookmarked,
+        "dislikes_count": dislikes_count, "disliked_by_me": disliked_by_me,
         "replies_count": replies_count, "views_count": post.views_count or 0,
         "created_at": post.created_at.isoformat(), "reply_to_id": post.reply_to_id,
+        "edited_at": post.edited_at.isoformat() if post.edited_at else None,
         "repost_of": repost_data, "is_repost": is_repost, "is_quote": is_quote,
     }
 
@@ -452,20 +479,32 @@ async def toggle_like(
         if post and post.author_id != user.id:
             notif = Notification(user_id=post.author_id, actor_id=user.id, type="like", post_id=post_id)
             session.add(notif)
+
+        # Взаимное исключение: лайк снимает дизлайк
+        existing_dislike = session.exec(
+            select(Dislike).where(Dislike.user_id == user.id, Dislike.post_id == post_id)
+        ).first()
+        if existing_dislike:
+            session.delete(existing_dislike)
             
     session.commit()
     
-    # Считаем актуальное количество лайков после коммита
+    # Считаем актуальное количество лайков/дизлайков после коммита
     cnt = session.exec(
         select(func.count()).select_from(Like).where(Like.post_id == post_id)
+    ).one()
+    dislike_cnt = session.exec(
+        select(func.count()).select_from(Dislike).where(Dislike.post_id == post_id)
     ).one()
     
     # 🚀 Единый payload для WebSocket (всё, что нужно фронту)
     ws_payload = {
         "post_id": post_id,
         "likes_count": cnt,
+        "dislikes_count": dislike_cnt,
         "liker_id": user.id,      # 👈 КРИТИЧЕСКИ ВАЖНО: фронт должен знать, КТО лайкнул
         "liked": is_liking,       # 👈 True (поставил) / False (снял)
+        "disliked": False,
     }
     
     # Рассылаем ВСЕМ подключенным клиентам (включая второе/третье устройство этого же юзера)
@@ -474,7 +513,9 @@ async def toggle_like(
     # Возвращаем полные данные на фронт, чтобы UI обновился мгновенно из HTTP-ответа
     return {
         "liked": is_liking,
-        "likes_count": cnt
+        "likes_count": cnt,
+        "disliked": False,
+        "dislikes_count": dislike_cnt,
     }
 
 
@@ -544,11 +585,10 @@ async def delete_post(
         author = session.get(User, post.author_id)
         if author:
             check_sanction_rights(user, author, session, "удалять посты этого пользователя")
+        # 🛡️ Резерв: снимок ветки до удаления (откат бана админа вернёт пост)
+        tree = snapshot_post_tree(session, post_id)
+        backup_action(session, user.id, "delete_post", "post", post_id, tree)
     await cascade_delete_post(post_id, session)
-
-    _popular_tags_cache.pop("tags", None) 
-
-
     log_action(
         session, user.id, "delete_post",
         target_type="post", target_id=post_id,
@@ -576,10 +616,8 @@ async def cancel_repost(
         raise HTTPException(400, "Это не репост")
     
     # Каскадно удаляем сам репост
-    cascade_delete_post(post.id, session)
+    await cascade_delete_post(post.id, session)
     await manager.broadcast_all("post_deleted", {"post_id": post.id})
-
-    _popular_tags_cache.pop("tags", None)
     return {"ok": True}
 
 
@@ -602,6 +640,28 @@ def get_posts(
 
     posts = session.exec(query.limit(limit)).all()
 
+    # 🛡 ПРИВАТНЫЕ АККАНТЫ: их посты не попадают в общую ленту, если зритель —
+    # не сам автор, не его подписчик и не staff с правом «Доступ к панели
+    # управления» (manage_users).
+    if posts:
+        _authors = session.exec(select(User).where(User.id.in_({p.author_id for p in posts}))).all()
+        _hidden = set()
+        for _u in _authors:
+            if not getattr(_u, "is_private", False):
+                continue
+            if viewer is None:
+                _hidden.add(_u.id)
+            elif (
+                viewer.id != _u.id
+                and not viewer.is_admin
+                and not viewer.is_moderator
+                and not has_permission(viewer, "manage_users", session)
+                and not _viewer_follows(viewer.id, _u.id, session)
+            ):
+                _hidden.add(_u.id)
+        if _hidden:
+            posts = [p for p in posts if p.author_id not in _hidden]
+
     if not posts:
         return {"posts": [], "has_more": False, "next_cursor": None}
 
@@ -613,6 +673,9 @@ def get_posts(
 
     likes_map = dict(session.exec(
         select(Like.post_id, func.count()).where(Like.post_id.in_(ids)).group_by(Like.post_id)
+    ).all())
+    dislikes_map = dict(session.exec(
+        select(Dislike.post_id, func.count()).where(Dislike.post_id.in_(ids)).group_by(Dislike.post_id)
     ).all())
     replies_map = dict(session.exec(
         select(Post.reply_to_id, func.count()).where(Post.reply_to_id.in_(ids)).group_by(Post.reply_to_id)
@@ -633,16 +696,21 @@ def get_posts(
                 "media_url": op.media_url,
                 "media_type": op.media_type,  # ✅ op, не p!
                 "created_at": op.created_at.isoformat(),
+                "edited_at": op.edited_at.isoformat() if op.edited_at else None,
             }
 
     liked_ids = set()
     bookmarked_ids = set()
+    disliked_ids = set()
     if viewer:
         liked_ids = set(session.exec(
             select(Like.post_id).where(Like.user_id == viewer.id, Like.post_id.in_(ids))
         ).all())
         bookmarked_ids = set(session.exec(
             select(Bookmark.post_id).where(Bookmark.user_id == viewer.id, Bookmark.post_id.in_(ids))
+        ).all())
+        disliked_ids = set(session.exec(
+            select(Dislike.post_id).where(Dislike.user_id == viewer.id, Dislike.post_id.in_(ids))
         ).all())
 
     result = []
@@ -692,9 +760,12 @@ def get_posts(
             "media_type": p.media_type,  # ✅ p здесь — это текущий пост
             "likes_count": likes_map.get(p.id, 0),
             "liked_by_me": p.id in liked_ids,
+            "dislikes_count": dislikes_map.get(p.id, 0),
+            "disliked_by_me": p.id in disliked_ids,
             "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_map.get(p.id, 0),
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
             "views_count": p.views_count or 0,
             "repost_of": repost_data,
             "is_repost": is_repost,
@@ -724,6 +795,24 @@ async def create_post(
     
     if repost_of and reply_to:
         raise HTTPException(400, "Нельзя одновременно отвечать и репостить")
+
+    # 🛡 ПРИВАТНОСТЬ: «Кто может комментировать мои записи» — проверяем настройку
+    # автора поста, на который отвечают.
+    if reply_to:
+        parent_post = session.get(Post, reply_to)
+        if parent_post:
+            parent_author = session.get(User, parent_post.author_id)
+            if parent_author and parent_author.id != user.id and not user.is_admin:
+                _csetting = getattr(parent_author, "allow_comments", "everyone") or "everyone"
+                _allowed = True
+                if _csetting == "followers":
+                    _allowed = _viewer_follows(user.id, parent_author.id, session)
+                elif _csetting == "following":
+                    _allowed = _viewer_follows(parent_author.id, user.id, session)
+                elif _csetting == "mentioned":
+                    _allowed = f"@{user.username}".lower() in (parent_post.text or "").lower()
+                if not _allowed:
+                    raise HTTPException(403, "Автор ограничил, кто может комментировать эту запись")
 
     original_post = None
     if repost_of:
@@ -769,6 +858,10 @@ async def create_post(
             resource_type = "video"
         else:
             raise HTTPException(400, f"Неподдерживаемый формат файла: {ext} ({content_type})")
+
+        err = check_size_before_read(file.headers, 50 * 1024 * 1024)
+        if err:
+            raise HTTPException(413, err)
 
         content = await file.read()
         if len(content) > 50 * 1024 * 1024:  # 50 МБ для аудио/видео
@@ -929,6 +1022,10 @@ async def process_video_note(
     if ext not in ALLOWED_VIDEO_EXT:
         raise HTTPException(400, f"Неверный формат: {ext}")
     
+    err = check_size_before_read(file.headers, 50 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+
     content = await file.read()
     if len(content) > 50 * 1024 * 1024:
         raise HTTPException(400, "Файл слишком большой (макс 50 МБ)")
@@ -947,26 +1044,50 @@ async def process_video_note(
         vf = f"crop=min(iw\\,ih):min(iw\\,ih):(iw-min(iw\\,ih))/2:(ih-min(iw\\,ih))/2,scale={target_size}:{target_size}"
         if mirror == "1":
             vf += ",hflip"
-        
+
+        # Ленивый поиск ffmpeg — не импортируем модуль ffmpeg при старте
+        def _find_ffmpeg():
+            import shutil
+            exe = shutil.which("ffmpeg")
+            if not exe:
+                # Попробуем стандартные пути на Windows
+                for p in [
+                    os.path.expanduser("~/ffmpeg/bin/ffmpeg.exe"),
+                    "C:\\ffmpeg\\bin\\ffmpeg.exe",
+                    "C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe",
+                    "D:\\ffmpeg\\bin\\ffmpeg.exe",
+                ]:
+                    if os.path.isfile(p):
+                        return p
+                raise HTTPException(500, "ffmpeg не найден в PATH — установите ffmpeg")
+            return exe
+
         cmd = [
-            get_ffmpeg_exe(), "-y", "-i", input_path,
+            _find_ffmpeg(), "-y", "-i", input_path,
             "-vf", vf,
             "-c:v", "libx264", "-preset", "fast", "-crf", "23",
             "-movflags", "+faststart",
-            "-c:a", "aac", "-b:a", "128k",
-            "-pix_fmt", "yuv420p",
-            output_path
+            "-an",
+            output_path,
         ]
-        
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
         if result.returncode != 0:
             print(f"FFMPEG ERROR: {result.stderr}")
             raise HTTPException(500, "Ошибка обработки видео")
-        
+
+        if not os.path.exists(output_path):
+            raise HTTPException(500, "FFmpeg не создал выходной файл")
+
         with open(output_path, "rb") as f:
             output_bytes = f.read()
-        
+
         return Response(
             content=output_bytes,
             media_type="video/mp4",
@@ -998,11 +1119,10 @@ def popular_tags(session: Session = Depends(get_session)):
         if now - cached_time < _POPULAR_TAGS_TTL:
             return cached_data
 
-    # ✅ JOIN с Post — считаем только теги ЖИВЫХ постов
+    # JOIN вместо N+1
     rows = session.exec(
         select(Tag.name, func.count(PostTag.post_id).label("cnt"))
         .join(PostTag, Tag.id == PostTag.tag_id)
-        .join(Post, PostTag.post_id == Post.id)  # 👈 ДОБАВЛЕНО: игнорит удаленные посты
         .group_by(Tag.id, Tag.name)
         .order_by(func.count(PostTag.post_id).desc())
         .limit(10)
@@ -1060,9 +1180,12 @@ def tag_posts(tag_name: str, session: Session = Depends(get_session)):
             "media_url": p.media_url,
             "likes_count": likes_map.get(p.id, 0),
             "liked_by_me": False,
+            "dislikes_count": 0,
+            "disliked_by_me": False,
             "replies_count": replies_map.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
             "media_type": p.media_type,  # 🆕
         })
     return result
@@ -1091,6 +1214,27 @@ async def edit_post(
             check_sanction_rights(user, author, session, "редактировать посты этого пользователя")
     old_text = post.text
     post.text = text.strip()
+    # ✏️ Метка «изменено»: без неё флаг не сохраняется в БД и пропадает
+    # после перезагрузки (фронт видел только локальный стейт).
+    post.edited_at = utcnow()
+
+    # 🏷️ Пересборка тегов: удаляем старые PostTag поста и создаём новые
+    # по актуальному #хэштегу (иначе в правой панели «Популярные теги»
+    # остаётся старый тег, а новый не появляется).
+    session.exec(delete(PostTag).where(PostTag.post_id == post.id))
+    if post.text.strip():
+        for tag_name in extract_tags(post.text):
+            tag = session.exec(select(Tag).where(Tag.name == tag_name)).first()
+            if not tag:
+                tag = Tag(name=tag_name)
+                session.add(tag)
+                session.commit()
+                session.refresh(tag)
+            session.add(PostTag(post_id=post.id, tag_id=tag.id))
+
+    # Сброс кэша «Популярные теги» — чтобы правка отразилась сразу
+    _popular_tags_cache.pop("tags", None)
+
     session.add(post)
     log_action(session, user.id, "edit_post",
                target_type="post", target_id=post_id,

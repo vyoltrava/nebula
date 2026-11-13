@@ -58,6 +58,9 @@ def list_bugs(
         query = query.where(BugReport.status == status)
     
     bugs = session.exec(query.limit(200)).all()
+    _pre = batch_get_users(
+        [u for u in (session.get(User, b.reporter_id) for b in bugs) if u], session
+    )
     
     result = []
     for bug in bugs:
@@ -66,7 +69,7 @@ def list_bugs(
         
         result.append({
             "id": bug.id,
-            "reporter": user_out(reporter, session) if reporter else None,
+            "reporter": user_out(reporter, session, _pre.get(reporter.id)) if reporter else None,
             "title": bug.title,
             "description": bug.description,
             "status": bug.status,

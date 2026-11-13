@@ -31,6 +31,7 @@ def search(
         select(User)
         .where(
             User.is_banned == False,
+            User.is_bot == False,  # 🤖 системный бот не в поиске
             User.username.ilike(pattern) | User.display_name.ilike(pattern)
         )
         .limit(15)
@@ -47,7 +48,8 @@ def search(
     ).all()
 
     if not posts:
-        return {"users": [user_out(u, session) for u in users], "posts": []}
+        _pre = batch_get_users(users, session)
+        return {"users": [user_out(u, session, _pre.get(u.id)) for u in users], "posts": []}
 
     post_ids = [p.id for p in posts]
     author_ids = list({p.author_id for p in posts})
@@ -59,6 +61,12 @@ def search(
         select(Like.post_id, func.count(Like.id))
         .where(Like.post_id.in_(post_ids))
         .group_by(Like.post_id)
+    ).all())
+
+    dislikes_counts = dict(session.exec(
+        select(Dislike.post_id, func.count(Dislike.id))
+        .where(Dislike.post_id.in_(post_ids))
+        .group_by(Dislike.post_id)
     ).all())
 
     replies_counts = dict(session.exec(
@@ -76,6 +84,9 @@ def search(
         ).all())
         bookmarked_ids = set(session.exec(
             select(Bookmark.post_id).where(Bookmark.user_id == viewer.id, Bookmark.post_id.in_(post_ids))
+        ).all())
+        disliked_ids = set(session.exec(
+            select(Dislike.post_id).where(Dislike.user_id == viewer.id, Dislike.post_id.in_(post_ids))
         ).all())
 
     # 🆕 Загружаем оригиналы для репостов
@@ -139,16 +150,20 @@ def search(
             "media_type": p.media_type,
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": p.id in liked_ids,
+            "dislikes_count": dislikes_counts.get(p.id, 0),
+            "disliked_by_me": p.id in disliked_ids,
             "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
             "repost_of": repost_data,
             "is_repost": is_repost,
             "is_quote": is_quote,
         })
 
+    _pre = batch_get_users(users, session)
     return {
-        "users": [user_out(u, session) for u in users],
+        "users": [user_out(u, session, _pre.get(u.id)) for u in users],
         "posts": result_posts,
     }

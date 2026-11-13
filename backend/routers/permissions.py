@@ -17,29 +17,8 @@ router = APIRouter()
 @router.get("/api/permissions")
 def list_permissions():
     return [
-        # === Модерация контента ===
-        {"id": "delete_posts", "label": "Удалять посты", "category": "content"},
-        {"id": "edit_posts", "label": "Редактировать чужие посты", "category": "content"},
-        {"id": "remove_avatars", "label": "Удалять аватарки", "category": "content"},
-        {"id": "manage_stickers", "label": "Управлять стикер-паками", "category": "content"},
-        {"id": "manage_announcements", "label": "Публиковать объявления", "category": "content"},
-        
-        # === Модерация пользователей ===
-        {"id": "ban_users", "label": "Банить пользователей", "category": "users"},
-        {"id": "warn_users", "label": "Выдавать предупреждения", "category": "users"},
-        {"id": "delete_users", "label": "Удалять пользователей", "category": "users"},
-        {"id": "assign_moderator", "label": "Назначать модераторов", "category": "users"},
-        
-        # === Чаты и группы ===
-        {"id": "pin_messages", "label": "Закреплять сообщения везде", "category": "chats"},
-        {"id": "manage_groups", "label": "Администрировать любые группы", "category": "chats"},
-        {"id": "manage_support", "label": "Чат поддержки", "category": "chats"},
-        
-        # === Система ===
-        {"id": "manage_roles", "label": "Управлять ролями", "category": "system"},
-        {"id": "manage_users", "label": "Доступ к панели управления", "category": "system"},
-        {"id": "manage_reports", "label": "Управление жалобами", "category": "system"},
-        {"id": "tech_access", "label": "Технический доступ", "category": "system"},
+        {"id": perm_id, "label": label, "category": cat}
+        for perm_id, (label, cat) in PERMISSION_LABELS.items()
     ]
 
 
@@ -58,7 +37,16 @@ def list_roles(session: Session = Depends(get_session)):
     )
     
     sorted_roles = staff_roles + other_roles
-    
+
+    def _safe_perms(raw) -> list:
+        # 🛡 Самолечение: битый/NULL JSON в role.permissions не должен ронять
+        # всю страницу ролей (500 → белая страница / редирект на /).
+        try:
+            parsed = json.loads(raw) if raw else []
+            return parsed if isinstance(parsed, list) else []
+        except Exception:
+            return []
+
     return [
         {
             "id": r.id,
@@ -67,9 +55,10 @@ def list_roles(session: Session = Depends(get_session)):
             "level": r.level,
             "description": r.description or "",
             "is_staff": r.is_staff,
+            "show_in_payments": r.show_in_payments,
             "position": r.position or 0,
             "category_id": r.category_id,
-            "permissions": json.loads(r.permissions),
+            "permissions": _safe_perms(r.permissions),
         }
         for r in sorted_roles
     ]
@@ -82,6 +71,7 @@ def create_role(
     level: int = Form(1),
     description: Optional[str] = Form(None),
     is_staff: bool = Form(False),
+    show_in_payments: bool = Form(False),
     permissions: str = Form("[]"),
     category_id: Optional[int] = Form(None),
     staff: User = Depends(require_staff),
@@ -105,7 +95,8 @@ def create_role(
     role = Role(
         name=name, color=color, level=level,
         description=description, is_staff=is_staff,
-        position=position, permissions=permissions,
+        show_in_payments=show_in_payments,
+        position=position, permissions=json.dumps(parse_and_validate_permissions(permissions)),
         category_id=category_id,
     )
     session.add(role)
@@ -115,6 +106,7 @@ def create_role(
     return {
         "id": role.id, "name": role.name, "color": role.color, "level": role.level,
         "description": role.description, "is_staff": role.is_staff,
+        "show_in_payments": role.show_in_payments,
         "position": role.position, "permissions": json.loads(role.permissions),
     }
 
@@ -127,6 +119,7 @@ def update_role(
     level: Optional[int] = Form(None),
     description: Optional[str] = Form(None),
     is_staff: Optional[bool] = Form(None),
+    show_in_payments: Optional[bool] = Form(None),
     permissions: Optional[str] = Form(None),
     category_id: Optional[int] = Form(None),
     staff: User = Depends(require_staff),
@@ -159,8 +152,10 @@ def update_role(
             staff_roles = session.exec(select(Role).where(Role.is_staff == True)).all()
             role.position = max([r.position for r in staff_roles], default=0) + 1
         role.is_staff = is_staff
-    if permissions:
-        role.permissions = permissions
+    if show_in_payments is not None:
+        role.show_in_payments = show_in_payments
+    if permissions is not None:
+        role.permissions = json.dumps(parse_and_validate_permissions(permissions))
     if category_id is not None:
         role.category_id = category_id if category_id > 0 else None
     session.add(role)
@@ -170,6 +165,7 @@ def update_role(
     return {
         "id": role.id, "name": role.name, "color": role.color, "level": role.level,
         "description": role.description, "is_staff": role.is_staff,
+        "show_in_payments": role.show_in_payments,
         "position": role.position, "permissions": json.loads(role.permissions),
     }
 
@@ -194,6 +190,28 @@ def delete_role(
     for u in users:
         u.role_id = None
         session.add(u)
+
+    # 🔄 роль удалена → все её носители теряют членство в рабочих чатах
+    try:
+        from work_chats import sync_user_work_membership
+        for u in users:
+            sync_user_work_membership(session, u, staff)
+    except Exception as _e:
+        print("work membership sync (role delete):", _e)
+
+    # 🆕 Чистим историю ролей, иначе FK violation (в проде constraint без ON DELETE SET NULL)
+    hist = session.exec(
+        select(RoleHistory).where(
+            (RoleHistory.old_role_id == role_id) | (RoleHistory.new_role_id == role_id)
+        )
+    ).all()
+    for h in hist:
+        if h.old_role_id == role_id:
+            h.old_role_id = None
+        if h.new_role_id == role_id:
+            h.new_role_id = None
+        session.add(h)
+
     session.delete(role)
     session.commit()
     invalidate_role_cache()

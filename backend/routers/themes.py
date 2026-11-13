@@ -20,12 +20,8 @@ def get_themes(
     session: Session = Depends(get_session),
 ):
     """Публичный список тем — фильтруем по уровню доступа пользователя"""
-    # Глобальный тумблер
-    enabled_row = session.get(SystemSetting, "themes_enabled")
-    themes_enabled = enabled_row.value == "true" if enabled_row else False
-    
-    if not themes_enabled:
-        return []
+    # 🎨 Темы фонов ВСЕГДА включены: глобального выключателя больше нет.
+    # Пользователь всегда сам выбирает фон в настройках (вплоть до «Стандарт»).
 
     user_level = get_user_level(user, session) if user else 0
     is_admin = user.is_admin if user else False

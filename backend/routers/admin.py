@@ -75,9 +75,10 @@ def admin_list_users(
             last_ip_map[log.user_id] = log.ip_address
             last_seen_map[log.user_id] = log.created_at
 
+    _pre = batch_get_users(users, session)
     result = []
     for u in users:
-        data = user_out(u, session)
+        data = user_out(u, session, _pre.get(u.id))
         data["last_ip"] = last_ip_map.get(u.id)
         data["last_seen"] = last_seen_map.get(u.id).isoformat() if last_seen_map.get(u.id) else None
         data["posts_count"] = posts_counts.get(u.id, 0)
@@ -90,6 +91,8 @@ def admin_list_users(
 @router.post("/api/admin/users/{user_id}/ban")
 def admin_ban_user(
     user_id: int,
+    reason: Optional[str] = Body(default=None),
+    duration_hours: Optional[int] = Body(default=None),
     admin: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
@@ -105,14 +108,37 @@ def admin_ban_user(
     # 🛡️ Единый иммунитет: Founder/Developer/System трогает только Founder
     check_sanction_rights(admin, target, session, "банить этого пользователя")
     
-    target.is_banned = not target.is_banned
+    # 🛡️ Резерв: запоминаем предыдущее состояние бана для отката
+    if not target.is_banned:  # это бан (а не разбан)
+        backup_action(session, admin.id, "ban_user", "user", target.id,
+                      {"user_id": target.id, "previous_is_banned": bool(target.is_banned),
+                       "username": target.username})
+
+    # Если уже забанен — это РАЗБАН (снимаем всё). Иначе — бан с причиной и сроком.
+    if target.is_banned:
+        target.is_banned = False
+        target.ban_until = None
+        target.ban_reason = None
+    else:
+        target.is_banned = True
+        target.ban_reason = (reason or "").strip() or None
+        # duration_hours: None/0/отрицательный = навсегда (перманентный); иначе — авто-разбан
+        target.ban_until = datetime.now(timezone.utc) + timedelta(hours=duration_hours) \
+            if duration_hours and duration_hours > 0 else None
+
     session.add(target)
     session.commit()
     log_action(session, admin.id, "ban_user" if target.is_banned else "unban_user",
                target_type="user", target_id=target.id,
-               details={"username": target.username})
+               details={"username": target.username,
+                        "reason": getattr(target, "ban_reason", None),
+                        "until": getattr(target, "ban_until", None).isoformat() if getattr(target, "ban_until", None) else None})
     session.commit()
-    return {"is_banned": target.is_banned}
+    return {
+        "is_banned": target.is_banned,
+        "reason": getattr(target, "ban_reason", None),
+        "until": getattr(target, "ban_until", None).isoformat() if getattr(target, "ban_until", None) else None,
+    }
 
 
 @router.post("/api/admin/users/{user_id}/warn")
@@ -154,11 +180,12 @@ def admin_list_warnings(
     ).all()
     issuer_ids = list({w.issuer_id for w in warns})
     issuers = {u.id: u for u in session.exec(select(User).where(User.id.in_(issuer_ids or [0]))).all()}
+    _pre = batch_get_users(list(issuers.values()), session)
     return [{
         "id": w.id,
         "reason": w.reason,
         "active": w.active,
-        "issuer": user_out(issuers.get(w.issuer_id), session) if issuers.get(w.issuer_id) else None,
+        "issuer": user_out(issuers.get(w.issuer_id), session, _pre.get(w.issuer_id)) if issuers.get(w.issuer_id) else None,
         "created_at": w.created_at.isoformat(),
         "expires_at": w.expires_at.isoformat() if w.expires_at else None,
     } for w in warns]
@@ -250,6 +277,9 @@ async def admin_delete_post(
     author = session.get(User, post.author_id)
     if author and author.id != staff.id:
         check_sanction_rights(staff, author, session, "удалять посты этого пользователя")
+    # 🛡️ Резерв: снимок ветки до удаления (откат бана админа вернёт пост)
+    tree = snapshot_post_tree(session, post_id)
+    backup_action(session, staff.id, "delete_post", "post", post_id, tree)
     await cascade_delete_post(post_id, session)
     log_action(
         session, staff.id, "delete_post",
@@ -293,6 +323,7 @@ async def admin_delete_all_user_posts(
     reply_ids = [r.id for r in user_replies]
     if reply_ids:
         session.exec(delete(Like).where(Like.post_id.in_(reply_ids)))
+        session.exec(delete(Dislike).where(Dislike.post_id.in_(reply_ids)))
         session.exec(delete(PostTag).where(PostTag.post_id.in_(reply_ids)))
         session.exec(delete(Notification).where(Notification.post_id.in_(reply_ids)))
         session.exec(delete(PostView).where(PostView.post_id.in_(reply_ids)))
@@ -358,27 +389,79 @@ def admin_list_packs(
 
 
 @router.post("/api/admin/sticker-packs")
-def admin_create_pack(
+async def admin_create_pack(
     name: str = Form(...),
     min_level: int = Form(1),
+    is_active: bool = Form(True),
+    emojis: str = Form("[]"),          # 🆕 JSON-массив эмодзи
+    files: List[UploadFile] = File([]), # 🆕 Картинки (можно из папки)
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     if not has_permission(user, "manage_stickers", session):
         raise HTTPException(403, "Нет права: manage_stickers")
-    pack = StickerPack(name=name.strip(), min_level=min_level)
+
+    pack = StickerPack(
+        name=name.strip(),
+        min_level=min_level,
+        is_active=is_active,
+        # 🛡️ КРИТИЧЕСКИ ВАЖНО: emojis больше не NOT NULL, но для страховки пишем пустой список
+    )
     session.add(pack)
     session.commit()
     session.refresh(pack)
-    return {"ok": True, "id": pack.id}
+
+    added = []
+    max_order = 0
+
+    # 1. Эмодзи
+    try:
+        emoji_list = json.loads(emojis) if isinstance(emojis, str) else emojis
+        if not isinstance(emoji_list, list):
+            emoji_list = []
+    except Exception:
+        emoji_list = []
+
+    for e in emoji_list:
+        if not e:
+            continue
+        max_order += 1
+        s = Sticker(pack_id=pack.id, type="emoji", content=str(e), order=max_order)
+        session.add(s)
+        session.commit()
+        session.refresh(s)
+        added.append({"id": s.id, "type": "emoji", "content": e})
+
+    # 2. Картинки
+    import cloudinary.uploader
+    for file in files:
+        if not file.content_type or not file.content_type.startswith("image/"):
+            continue
+        contents = await file.read()
+        if len(contents) > 5 * 1024 * 1024:  # 5MB на стикер
+            continue
+        try:
+            result = cloudinary.uploader.upload(contents, folder="stickers", resource_type="image")
+            url = result["secure_url"]
+            max_order += 1
+            s = Sticker(pack_id=pack.id, type="image", content=url, order=max_order)
+            session.add(s)
+            session.commit()
+            session.refresh(s)
+            added.append({"id": s.id, "type": "image", "content": url})
+        except Exception as e:
+            print(f"[Stickers] Failed to upload image: {e}")
+
+    return {"ok": True, "id": pack.id, "added": added}
 
 
 @router.put("/api/admin/sticker-packs/{pack_id}")
-def admin_update_pack(
+async def admin_update_pack(
     pack_id: int,
     name: str = Form(...),
     min_level: int = Form(1),
     is_active: bool = Form(True),
+    files: List[UploadFile] = File([]),  # 🆕 можно докинуть картинки при редактировании
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -387,12 +470,36 @@ def admin_update_pack(
     pack = session.get(StickerPack, pack_id)
     if not pack:
         raise HTTPException(404, "Пак не найден")
+
     pack.name = name.strip()
     pack.min_level = min_level
     pack.is_active = is_active
     session.add(pack)
+
+    added = []
+    if files:
+        max_order = session.exec(
+            select(func.max(Sticker.order)).where(Sticker.pack_id == pack_id)
+        ).one() or 0
+        import cloudinary.uploader
+        for file in files:
+            if not file.content_type or not file.content_type.startswith("image/"):
+                continue
+            contents = await file.read()
+            try:
+                result = cloudinary.uploader.upload(contents, folder="stickers", resource_type="image")
+                url = result["secure_url"]
+                max_order += 1
+                s = Sticker(pack_id=pack_id, type="image", content=url, order=max_order)
+                session.add(s)
+                session.commit()
+                session.refresh(s)
+                added.append({"id": s.id, "type": "image", "content": url})
+            except Exception as e:
+                print(f"[Stickers] Failed to upload: {e}")
+
     session.commit()
-    return {"ok": True}
+    return {"ok": True, "added": added}
 
 
 @router.delete("/api/admin/sticker-packs/{pack_id}")
@@ -529,56 +636,55 @@ def admin_list_chats(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Все чаты КРОМЕ секретных. Личные чаты Founder/Developer/System — только для Founder."""
+    """🔒 ПРИВАТНОСТЬ: список чатов НЕ отдаётся. Возвращаются только чаты
+    с активной (pending) жалобой. Жалобу закрыли → доступ пропал."""
     if not has_permission(staff, "manage_groups", session):
         raise HTTPException(403, "Нет права: manage_groups")
 
-    chats = session.exec(
-        select(Chat).where(Chat.is_secret == False).order_by(Chat.created_at.desc())
+    pending = session.exec(
+        select(Report).where(
+            Report.status == "pending",
+            Report.target_type.in_(["chat", "dm_user", "chat_message"]),
+        ).order_by(Report.created_at.desc())
     ).all()
-    if not chats:
-        return []
-    chat_ids = [c.id for c in chats]
 
-    members = session.exec(select(ChatMember).where(ChatMember.chat_id.in_(chat_ids))).all()
-    user_ids = list({m.user_id for m in members})
-    users = {u.id: u for u in session.exec(select(User).where(User.id.in_(user_ids))).all()}
-    members_by_chat = {}
-    for m in members:
-        members_by_chat.setdefault(m.chat_id, []).append(users.get(m.user_id))
-
-    msgs = session.exec(
-        select(Message).where(Message.chat_id.in_(chat_ids)).order_by(Message.created_at.desc())
-    ).all()
-    last_by_chat = {}
-    for m in msgs:
-        if m.chat_id not in last_by_chat:
-            last_by_chat[m.chat_id] = m
+    # chat_id -> самая мягкая область доступа (chat > message)
+    scope_by_chat: dict = {}
+    for r in pending:
+        cid = _report_chat_id(session, r)
+        if cid is None:
+            continue
+        # Жалоба на весь чат/юзера открывает весь диалог; на сообщение — только сообщение
+        if r.target_type in ("chat", "dm_user"):
+            scope_by_chat[cid] = "chat"
+        elif cid not in scope_by_chat:
+            scope_by_chat[cid] = "message"
 
     result = []
-    for c in chats:
-        chat_users = [u for u in members_by_chat.get(c.id, []) if u]
+    for cid, scope in scope_by_chat.items():
+        c = session.get(Chat, cid)
+        if not c or c.is_secret:
+            continue
+        chat_users = session.exec(
+            select(ChatMember).where(ChatMember.chat_id == cid)
+        ).all()
+        user_ids = [m.user_id for m in chat_users]
+        users = {u.id: u for u in session.exec(select(User).where(User.id.in_(user_ids or [0]))).all()}
+        chat_user_objs = [users[m.user_id] for m in chat_users if m.user_id in users]
         # 🛡️ Личные чаты (DM) с иммунитетом скрыты от всех, кроме Founder
         if not c.is_group:
-            has_immune = any(u.is_admin or u.is_moderator or u.is_system for u in chat_users)
+            has_immune = any(u.is_admin or u.is_moderator or u.is_trelod for u in chat_user_objs)
             if has_immune and not staff.is_admin:
                 continue
-        last = last_by_chat.get(c.id)
-        last_data = None
-        if last:
-            sender = users.get(last.sender_id)
-            last_data = {
-                "text": (last.text or "📎 Вложение")[:40],
-                "sender_name": sender.display_name if sender else "Unknown",
-                "created_at": last.created_at.isoformat(),
-            }
         result.append({
             "id": c.id,
             "is_group": c.is_group,
-            "name": c.name if c.is_group else (" / ".join([u.display_name for u in chat_users]) or "Диалог"),
+            "name": c.name if c.is_group else (" / ".join([u.display_name for u in chat_user_objs]) or "Диалог"),
             "avatar_url": c.avatar_url,
-            "members_count": len(chat_users),
-            "last_message": last_data,
+            "members_count": len(chat_user_objs),
+            "is_blocked": bool(session.get(SystemSetting, f"chat_blocked_{c.id}")),
+            "access_scope": scope,
+            "last_message": None,  # 🔒 превью переписки не отдаём
             "created_at": c.created_at.isoformat(),
         })
     return result
@@ -591,7 +697,9 @@ def admin_chat_messages(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Просмотр сообщений чата. Личные чаты Founder/Developer/System — только для Founder."""
+    """🔒 ПРИВАТНОСТЬ: сообщения доступны ТОЛЬКО при активной (pending) жалобе.
+    Жалоба на сообщение → отдаётся только это сообщение; на чат/юзера → весь диалог.
+    Жалобу закрыли → доступ пропадает."""
     if not has_permission(staff, "manage_groups", session):
         raise HTTPException(403, "Нет права: manage_groups")
     chat = session.get(Chat, chat_id)
@@ -600,13 +708,37 @@ def admin_chat_messages(
     if chat.is_secret:
         raise HTTPException(403, "🔒 Секретные чаты недоступны для модерации")
 
+    # 🔒 Доступ только через активную жалобу
+    report = _active_chat_report_for_chat(session, chat_id)
+    if not report:
+        raise HTTPException(403, "🔒 Приватность: доступ к чату открывается только при активной жалобе")
+    scope = "chat" if report.target_type in ("chat", "dm_user") else "message"
+
     # 🛡️ Защита личных чатов с иммунитетом
     if not chat.is_group:
         member_rows = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id)).all()
         member_users = [session.get(User, m.user_id) for m in member_rows]
-        has_immune = any(u and (u.is_admin or u.is_moderator or u.is_system) for u in member_users)
+        has_immune = any(u and (u.is_admin or u.is_moderator or u.is_trelod) for u in member_users)
         if has_immune and not staff.is_admin:
             raise HTTPException(403, "🛡️ Личные чаты Founder/Developer недоступны для модерации")
+
+    # 🔒 Жалоба на конкретное сообщение → только оно
+    if scope == "message":
+        msg = session.get(Message, report.target_id)
+        if not msg or msg.chat_id != chat_id:
+            raise HTTPException(404, "Сообщение не найдено")
+        sender = session.get(User, msg.sender_id)
+        return [{
+            "id": msg.id,
+            "sender_id": msg.sender_id,
+            "sender_name": sender.display_name if sender else "Unknown",
+            "sender_avatar": sender.avatar_url if sender else None,
+            "text": msg.text,
+            "media_url": msg.media_url,
+            "media_type": msg.media_type,
+            "pinned": msg.pinned,
+            "created_at": msg.created_at.isoformat(),
+        }]
 
     messages = session.exec(
         select(Message).where(Message.chat_id == chat_id)
@@ -663,9 +795,11 @@ def admin_get_stats(
         .order_by(func.count(Follow.follower_id).desc())
         .limit(5)
     )
+    _tf = session.exec(top_followers_query).all()
+    _tf_pre = batch_get_users([u for u, _ in _tf], session)
     top_followers = [
-        {**user_out(u, session), "followers_count": count}
-        for u, count in session.exec(top_followers_query).all()
+        {**user_out(u, session, _tf_pre.get(u.id)), "followers_count": count}
+        for u, count in _tf
     ]
     
     # Топ по постам — ОДИН запрос с JOIN
@@ -676,9 +810,11 @@ def admin_get_stats(
         .order_by(func.count(Post.id).desc())
         .limit(5)
     )
+    _tp = session.exec(top_posts_query).all()
+    _tp_pre = batch_get_users([u for u, _ in _tp], session)
     top_posts = [
-        {**user_out(u, session), "posts_count": count}
-        for u, count in session.exec(top_posts_query).all()
+        {**user_out(u, session, _tp_pre.get(u.id)), "posts_count": count}
+        for u, count in _tp
     ]
     
     # Последние регистрации
@@ -686,6 +822,7 @@ def admin_get_stats(
         select(User).order_by(User.created_at.desc()).limit(10)
     ).all()
     
+    _rr_pre = batch_get_users(recent_users, session)
     return {
         "total_users": total_users,
         "total_posts": total_posts,
@@ -694,7 +831,7 @@ def admin_get_stats(
         "top_followers": top_followers,
         "top_posts": top_posts,
         "recent_registrations": [
-            {**user_out(u, session), "created_at": u.created_at.isoformat()}
+            {**user_out(u, session, _rr_pre.get(u.id)), "created_at": u.created_at.isoformat()}
             for u in recent_users
         ],
     }
@@ -769,13 +906,30 @@ def admin_edit_user_technical(
         ).first()
         if existing:
             raise HTTPException(400, "Username уже занят")
+        if username != target.username:
+            session.add(NickHistory(
+                user_id=target.id,
+                field="username",
+                old_value=target.username or "",
+                new_value=username,
+                changed_by=staff.id,
+            ))
         target.username = username
     
     # Смена display_name
     if display_name:
         if len(display_name.strip()) < 1 or len(display_name.strip()) > 50:
             raise HTTPException(400, "Display name: 1-50 символов")
-        target.display_name = display_name.strip()
+        display_name = display_name.strip()
+        if display_name != target.display_name:
+            session.add(NickHistory(
+                user_id=target.id,
+                field="display_name",
+                old_value=target.display_name or "",
+                new_value=display_name,
+                changed_by=staff.id,
+            ))
+        target.display_name = display_name
     
     # Смена пароля (без проверки старого — это техпанель)
     if new_password:
@@ -852,6 +1006,10 @@ async def admin_set_user_avatar(
     if ext not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
         raise HTTPException(400, "Invalid image type")
     
+    err = check_size_before_read(file.headers, 5 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+
     content = await file.read()
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(400, "File too large (max 5MB)")
@@ -872,7 +1030,7 @@ async def admin_set_user_avatar(
                 content,
                 folder=UPLOAD_FOLDER,
                 resource_type="image",
-                transformation=[{"width": 400, "height": 400, "crop": "fill"}],
+                transformation=[{"width": 1024, "height": 1024, "crop": "limit", "quality": 90}],
             )
         )
         target.avatar_url = result.get("secure_url")

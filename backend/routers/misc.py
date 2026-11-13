@@ -52,6 +52,10 @@ def list_bookmarks(
         select(Like.post_id, func.count()).where(Like.post_id.in_(post_ids)).group_by(Like.post_id)
     ).all())
 
+    dislikes_map = dict(session.exec(
+        select(Dislike.post_id, func.count()).where(Dislike.post_id.in_(post_ids)).group_by(Dislike.post_id)
+    ).all())
+
     replies_map = dict(session.exec(
         select(Post.reply_to_id, func.count()).where(Post.reply_to_id.in_(post_ids)).group_by(Post.reply_to_id)
     ).all())
@@ -59,6 +63,10 @@ def list_bookmarks(
     # 4. Какие из них лайкнуты текущим пользователем
     liked_ids = set(session.exec(
         select(Like.post_id).where(Like.user_id == user.id, Like.post_id.in_(post_ids))
+    ).all())
+
+    disliked_ids = set(session.exec(
+        select(Dislike.post_id).where(Dislike.user_id == user.id, Dislike.post_id.in_(post_ids))
     ).all())
 
     result = []
@@ -83,12 +91,15 @@ def list_bookmarks(
             "media_url": post.media_url,
             "likes_count": likes_map.get(post.id, 0),
             "liked_by_me": post.id in liked_ids,
+            "dislikes_count": dislikes_map.get(post.id, 0),
+            "disliked_by_me": post.id in disliked_ids,
             "bookmarked": True,
             "replies_count": replies_map.get(post.id, 0),
             # ✅ ИСПРАВЛЕНО: заменили 'p' на 'post'
             "views_count": post.views_count or 0,
             # ✅ ИСПРАВЛЕНО: заменили 'p' на 'post' и добавили безопасный .isoformat() для времени
             "created_at": post.created_at.isoformat() if post.created_at else None,
+            "edited_at": post.edited_at.isoformat() if post.edited_at else None,
             "media_type": post.media_type,  # 🆕
         })
         
@@ -98,7 +109,20 @@ def list_bookmarks(
 @router.get("/api/role-categories")
 def list_role_categories(session: Session = Depends(get_session)):
     cats = session.exec(select(RoleCategory).order_by(RoleCategory.order, RoleCategory.id)).all()
-    return [{"id": c.id, "name": c.name, "color": c.color, "description": c.description, "order": c.order} for c in cats]
+    out = []
+    for c in cats:
+        try:
+            tabs = json.loads(c.panel_tabs) if c.panel_tabs else []
+        except Exception:
+            tabs = []
+        if not isinstance(tabs, list):
+            tabs = []
+        out.append({
+            "id": c.id, "name": c.name, "color": c.color,
+            "description": c.description, "order": c.order,
+            "panel_tabs": tabs,
+        })
+    return out
 
 
 @router.post("/api/role-categories")
@@ -175,8 +199,22 @@ def get_sticker_packs(
     ).all()
     user_level = get_user_level(user, session)
     
+    # 🪐 Паки, добавленные себе из каталога («+» → StickerPackAdd):
+    # едут в общий список сразу с сервера, чтобы их видели ВСЕ потребители
+    # /api/sticker-packs (пикеры чатов, постов, эмодзи-паки папок и т.д.).
+    added_ids = {a.pack_id for a in session.exec(select(StickerPackAdd).where(
+        StickerPackAdd.user_id == user.id)).all()}
+
     result = []
     for p in packs:
+        # 🛡 Забаненные паки не показываем никому, кроме админа
+        if getattr(p, "banned", False) and not user.is_admin:
+            continue
+        # 🪐 Пользовательские паки в пикерах — СВОИ и ДОБАВЛЕННЫЕ из каталога.
+        # Чужие не-добавленные видны только в каталоге «+» (/api/sticker-packs/public).
+        # Админские паки (is_user=False) — стандартно видны всем.
+        if getattr(p, "is_user", False) and p.owner_id != user.id and p.id not in added_ids:
+            continue
         locked = (user_level < p.min_level) and not user.is_admin
         # Загружаем стикеры пака
         stickers = session.exec(
@@ -238,6 +276,14 @@ def get_team(session: Session = Depends(get_session)):
     for u in users:
         level = get_user_level(u, session)
 
+        u_role = roles.get(u.role_id) if u.role_id else None
+        # Уровни 9-11 (Developer/Founder/System) отображаются всегда.
+        # Остальные — только если их роль отмечена is_staff
+        # (спец. плашки, в т.ч. купленные, в окне команды не показываются).
+        is_top_level = level in (9, 10, 11)
+        if not is_top_level and (not u_role or not u_role.is_staff):
+            continue
+
         member_data = {
             "id": u.id,
             "username": u.username,
@@ -245,7 +291,7 @@ def get_team(session: Session = Depends(get_session)):
             "avatar_url": u.avatar_url,
             "is_admin": u.is_admin,
             "is_moderator": u.is_moderator,
-            "is_system": u.is_system,
+            "is_trelod": u.is_trelod,
             "level": level,
             "role": None,
         }
@@ -439,3 +485,17 @@ def set_shell_switcher_enabled(
     session.commit()
     return {"ok": True, "enabled": enabled}
 
+@router.get("/api/db-status")
+def db_status():
+    """🦆 Статус БД: работаем на Postgres или на аварийном SQLite-fallback.
+    Публичный (без токена) — им же пользуется health-check / мониторинг."""
+    from database import USING_SQLITE_FALLBACK, DATABASE_URL as ACTIVE_URL, PREFERRED_DATABASE_URL
+    return {
+        "ok": True,
+        "fallback": USING_SQLITE_FALLBACK,
+        "mode": "sqlite-fallback" if USING_SQLITE_FALLBACK else "postgres",
+        "preferred": PREFERRED_DATABASE_URL.split("@")[-1] if "@" in PREFERRED_DATABASE_URL else PREFERRED_DATABASE_URL,
+        "active": "sqlite://nebula.db" if USING_SQLITE_FALLBACK else (
+            ACTIVE_URL.split("@")[-1] if "@" in ACTIVE_URL else ACTIVE_URL
+        ),
+    }

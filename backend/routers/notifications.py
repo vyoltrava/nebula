@@ -128,12 +128,35 @@ def get_notifications(
     if not notifs:
         return []
 
-    actor_ids = list({n.actor_id for n in notifs})
-    actors = {
-        u.id: u for u in session.exec(
+    actor_ids = list({n.actor_id for n in notifs if n.actor_id})
+    actors = {}
+    if actor_ids:
+        actors = {u.id: u for u in session.exec(
             select(User).where(User.id.in_(actor_ids))
-        ).all()
-    }
+        ).all()}
+
+    # 🚀 Оптимизация N+1: прогреваем кэш ролей одним запросом, чтобы
+    # лёгкий сериализатор актора не делал запросов на каждое уведомление.
+    role_ids = {u.role_id for u in actors.values() if u.role_id}
+    if role_ids:
+        _now = time.time()
+        for r in session.exec(select(Role).where(Role.id.in_(role_ids))).all():
+            _role_cache[r.id] = (_now, r)
+
+    def _actor_light(a: "User") -> dict:
+        # Только те поля, что реально нужны фронту (аватар/имя/id) + роль
+        # из кэша. Без permissions/badges/level/2FA — они тут не нужны.
+        role = get_author_role(a, session)
+        return {
+            "id": a.id,
+            "username": a.username,
+            "display_name": a.display_name,
+            "avatar_url": a.avatar_url,
+            "is_admin": a.is_admin,
+            "is_moderator": a.is_moderator,
+            "is_banned": a.is_banned,
+            "role": role,
+        }
 
     result = []
     for n in notifs:
@@ -141,7 +164,7 @@ def get_notifications(
         result.append({
             "id": n.id,
             "type": n.type,
-            "actor": user_out(actor, session) if actor else None,
+            "actor": _actor_light(actor) if actor else None,
             "post_id": n.post_id,
             "read": n.read,
             "created_at": n.created_at.isoformat(),
