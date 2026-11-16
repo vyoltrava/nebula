@@ -19,6 +19,11 @@ interface Props {
  * - No fixed qrbox: the scanner detects QR anywhere in the frame.
  * - When QR is found: a pulsing frame appears around it.
  * - When no QR: a gentle scanning line animates across the preview.
+ *
+ * Critical fixes for iOS Safari and camera reliability:
+ * - scanner.start() called synchronously (no await)
+ * - Proper error handling with try/catch and e.name/e.message
+ * - scanner.stop() and scanner.clear() on unmount to prevent "already running"
  */
 export default function QRScanner({ open, onClose, onScan }: Props) {
   const { t } = useI18n();
@@ -27,7 +32,7 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
   const [qrFound, setQrFound] = useState(false);
   const [qrText, setQrText] = useState<string | null>(null);
 
-  // Use refs to share cancelled state between effects
+  // Use refs to share cancelled state between effects safely
   const cancelledRef = useRef<boolean>(false);
 
   // Canvas ref for drawing scanning line
@@ -42,44 +47,58 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
     setQrFound(false);
     setQrText(null);
     setScanProgress(0);
-    (async () => {
-      try {
-        const scanner = new Html5Qrcode(SCAN_ELEMENT_ID, false);
-        scannerRef.current = scanner;
+    let mounted = true;
 
-        // Start scanner WITHOUT fixed qrbox - detects QR anywhere in the frame
-        await scanner.start(
-          { facingMode: 'environment' },
-          {
-            fps: 10,
-            // Removed qrbox - scanner will detect QR anywhere in the video feed
-            aspectRatio: 1,
-          },
-          // Callback on QR code decoded
-          (decoded) => {
-            if (cancelledRef.current) return;
-            setQrFound(true);
-            setQrText(decoded);
-            onScan(decoded);
-            try { scanner.stop(); } catch {}
-            try { scanner.clear(); } catch {}
-            onClose();
-          },
-          // Error callback
-          () => {}
-        );
-      } catch (e: any) {
-        if (cancelledRef.current) return;
-        setErr({ msg: e?.message, key: 'qr.cameraError' });
-      }
-    })();
+    try {
+      // Critical: scanner.start() called synchronously (no await)
+      // This is required for iOS Safari - camera is accessed via user gesture
+      const scanner = new Html5Qrcode(SCAN_ELEMENT_ID, false);
+      scannerRef.current = scanner;
+
+      // Start scanner WITHOUT fixed qrbox - detects QR anywhere in the frame
+      // Note: No qrbox parameter - scanner will detect QR anywhere in video feed
+      // ERROR HANDLER REPLACED: () => {} -> proper error logging below
+      scanner.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          // Removed qrbox - scanner will detect QR anywhere in the video feed
+          aspectRatio: 1,
+        },
+        // Callback on QR code decoded
+        (decoded) => {
+          if (cancelledRef.current) return;
+          if (!mounted) return;
+          setQrFound(true);
+          setQrText(decoded);
+          onScan(decoded);
+          try { scanner.stop(); } catch {}
+          try { scanner.clear(); } catch {}
+          onClose();
+        },
+        // PROPER ERROR HANDLER - critical for debugging camera issues
+        (error) => {
+          if (cancelledRef.current) return;
+          if (!mounted) return;
+          console.error('QR scanner error:', error);
+          setErr({ msg: String(error), key: 'qr.cameraError' });
+        }
+      );
+    } catch (e: any) {
+      if (cancelledRef.current) return;
+      if (!mounted) return;
+      console.error('QR scanner init error - name:', e.name, 'message:', e.message);
+      setErr({ msg: e?.message || String(e), key: 'qr.cameraError' });
+    }
+
     return () => {
       cancelledRef.current = true;
+      mounted = false;
       const s = scannerRef.current;
       scannerRef.current = null;
       if (s) {
-        try { s.stop(); } catch {}
-        try { s.clear(); } catch {}
+        try { s.stop(); } catch { console.error('Error stopping scanner'); }
+        try { s.clear(); } catch { console.error('Error clearing scanner'); }
       }
     };
   }, [open, onScan, onClose]);
