@@ -82,8 +82,6 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
     scannerRef.current = scanner;
 
     // Start scanner WITHOUT fixed qrbox - detects QR anywhere in the frame
-    // Note: No qrbox parameter - scanner will detect QR anywhere in video feed
-    // Proper error handler for debugging camera issues
     scanner.start(
       { facingMode: 'environment' },
       {
@@ -195,9 +193,9 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
               onClick={() => setUserInteracted(true)}
               className="inline-flex items-center justify-center rounded-xl bg-[#8b5cf6] px-6 py-3 text-white font-medium text-sm hover:bg-[#7c3aed] transition-colors"
             >
-              <X size={20} className="mr-2" /> {t('qr.startScanning')}
+              Start Scanning
             </button>
-            <p className="text-xs text-[#B9B8BD] mt-2">{t('qr.scannerHint')}</p>
+            <p className="text-xs text-[#B9B8BD] mt-2">Point camera at QR code</p>
           </div>
         )}
 
