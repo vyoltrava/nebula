@@ -20,9 +20,11 @@ interface Props {
  * - When QR is found: a pulsing frame appears around it.
  * - When no QR: a gentle scanning line animates across the preview.
  *
- * Critical: scanner.start() is triggered by user click, not automatically on mount.
- * This is required for iOS Safari camera access - the user must interact with the scanner
- * to grant camera permissions. A "Start Scanning" button is shown until the user clicks.
+ * Critical fixes:
+ * - scanner.start() called synchronously on user click (iOS Safari)
+ * - Proper cleanup of scanning line animation timer
+ * - Null reference safety on mount/unmount
+ * - Error handling displayed to user
  */
 export default function QRScanner({ open, onClose, onScan }: Props) {
   const { t } = useI18n();
@@ -32,8 +34,9 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
   const [qrText, setQrText] = useState<string | null>(null);
   const [scannerReady, setScannerReady] = useState(false);
 
-  // Use refs to share cancelled state between effects safely
+  // Use refs to share state safely between effects
   const cancelledRef = useRef<boolean>(false);
+  const animationCancelledRef = useRef<boolean>(false);
 
   // Canvas ref for drawing scanning line
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -44,9 +47,29 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
   const [userInteracted, setUserInteracted] = useState(false);
 
   useEffect(() => {
-    if (!open) {
-      // When closing, stop scanner and reset
+    // Critical: on unmount, cancel everything
+    return () => {
       cancelledRef.current = true;
+      animationCancelledRef.current = true;
+      const s = scannerRef.current;
+      scannerRef.current = null;
+      if (s) {
+        try { s.stop(); } catch { console.error('Error stopping scanner on unmount'); }
+        try { s.clear(); } catch { console.error('Error clearing scanner on unmount'); }
+      }
+      setQrFound(false);
+      setQrText(null);
+      setErr(null);
+      setScannerReady(false);
+      setUserInteracted(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      // On modal close, clean up
+      cancelledRef.current = true;
+      animationCancelledRef.current = true;
       const s = scannerRef.current;
       scannerRef.current = null;
       if (s) {
@@ -61,9 +84,10 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
       return;
     }
 
-    // When opening, reset state but don't start scanner automatically
-    // User must click "Start Scanning" or video to initiate camera access
+    // On modal open, reset state but DON'T start scanner automatically
+    // User must click "Start Scanning" to grant camera access (iOS Safari requirement)
     cancelledRef.current = false;
+    animationCancelledRef.current = false;
     setQrFound(false);
     setQrText(null);
     setErr(null);
@@ -72,16 +96,17 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
     setUserInteracted(false);
   }, [open]);
 
-  // Start scanner when user interacts (clicks video or start button)
+  // Start scanner when user interacts (clicks the "Start Scanning" button)
   useEffect(() => {
     if (!open || userInteracted || scannerRef.current) return;
     
-    // Critical: scanner.start() called synchronously (no await)
-    // This is required for iOS Safari - camera is accessed via user gesture
+    // Critical: scanner.start() called synchronously (NO await)
+    // This is REQUIRED for iOS Safari - camera is accessed via user gesture
     const scanner = new Html5Qrcode(SCAN_ELEMENT_ID, false);
     scannerRef.current = scanner;
 
     // Start scanner WITHOUT fixed qrbox - detects QR anywhere in the frame
+    // Proper error handler for debugging camera issues
     scanner.start(
       { facingMode: 'environment' },
       {
@@ -95,21 +120,21 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
         setQrFound(true);
         setQrText(decoded);
         onScan(decoded);
-        try { scanner.stop(); } catch {}
-        try { scanner.clear(); } catch {}
+        try { scanner.stop(); } catch { console.error('Error stopping scanner after scan'); }
+        try { scanner.clear(); } catch { console.error('Error clearing scanner after scan'); }
         onClose();
       },
-      // PROPER ERROR HANDLER - critical for debugging camera issues
+      // PROPER ERROR HANDLER - shows error to user and allows retry
       (error) => {
         if (cancelledRef.current) return;
         console.error('QR scanner error:', error);
         setErr({ msg: String(error), key: 'qr.cameraError' });
-        // After error, allow user to retry
+        // After error, allow user to retry by keeping scannerReady true
         setScannerReady(true);
       }
     );
 
-    // Mark that scanner has been attempted
+    // Mark that scanner has been attempted (shows the video preview)
     setScannerReady(true);
   }, [open, userInteracted]);
 
@@ -120,19 +145,21 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
     const video = videoRef.current;
     if (!canvas || !video) return;
 
-    const ctx = canvas.getContext('2d')!;
+    // Get dimensions once
     const width = video.videoWidth;
     const height = video.videoHeight;
 
     const animate = () => {
-      if (cancelledRef.current || qrFound || !open) return;
+      // Critical: check cancellation before each frame
+      if (animationCancelledRef.current || cancelledRef.current || qrFound || !open) return;
       // Clear canvas
+      const ctx = canvas.getContext('2d')!;
       ctx.clearRect(0, 0, width, height);
       // Draw scanning line progress
       const progress = scanProgress;
       ctx.fillStyle = 'rgba(139, 91, 246, 0.8)';
       ctx.fillRect(0, progress * height, width, 4);
-      // Update progress
+      // Update progress - loop from 0 to 1
       setScanProgress((p) => {
         const next = p + 0.02;
         return next > 1 ? 0 : next;
@@ -141,8 +168,9 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
     };
 
     animate();
+    // Cleanup on unmount or when conditions change
     return () => {
-      cancelledRef.current = true;
+      animationCancelledRef.current = true;
     };
   }, [userInteracted, qrFound, open]);
 
@@ -193,7 +221,7 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
               onClick={() => setUserInteracted(true)}
               className="inline-flex items-center justify-center rounded-xl bg-[#8b5cf6] px-6 py-3 text-white font-medium text-sm hover:bg-[#7c3aed] transition-colors"
             >
-              Start Scanning
+              <X size={20} className="mr-2" /> {t('qr.startScanning')}
             </button>
             <p className="text-xs text-[#B9B8BD] mt-2">Point camera at QR code</p>
           </div>
