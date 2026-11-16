@@ -15,16 +15,11 @@ interface Props {
 }
 
 /**
- * QR-scanner with auto-detection and animated framing (like Telegram).
- * - No fixed qrbox: the scanner detects QR anywhere in the frame.
- * - When QR is found: a pulsing frame appears around it.
- * - When no QR: a gentle scanning line animates across the preview.
- *
- * Critical fixes:
- * - scanner.start() called synchronously on user click (iOS Safari)
- * - Proper cleanup of scanning line animation timer
- * - Null reference safety on mount/unmount
- * - Error handling displayed to user
+ * QR-scanner with auto-detection and animated framing.
+ * - Fixed qrbox for iOS Safari camera stability
+ * - Pulsing frame animation when QR is decoded
+ * - Scanning line animation while waiting
+ * - Proper error handling displayed to user
  */
 export default function QRScanner({ open, onClose, onScan }: Props) {
   const { t } = useI18n();
@@ -32,44 +27,18 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
   const [err, setErr] = useState<{ msg?: string; key?: MessageKey } | null>(null);
   const [qrFound, setQrFound] = useState(false);
   const [qrText, setQrText] = useState<string | null>(null);
-  const [scannerReady, setScannerReady] = useState(false);
 
   // Use refs to share state safely between effects
   const cancelledRef = useRef<boolean>(false);
-  const animationCancelledRef = useRef<boolean>(false);
 
   // Canvas ref for drawing scanning line
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
 
-  // Track if user has interacted with scanner to start camera
-  const [userInteracted, setUserInteracted] = useState(false);
-
   useEffect(() => {
-    // Critical: on unmount, cancel everything
     return () => {
       cancelledRef.current = true;
-      animationCancelledRef.current = true;
-      const s = scannerRef.current;
-      scannerRef.current = null;
-      if (s) {
-        try { s.stop(); } catch { console.error('Error stopping scanner on unmount'); }
-        try { s.clear(); } catch { console.error('Error clearing scanner on unmount'); }
-      }
-      setQrFound(false);
-      setQrText(null);
-      setErr(null);
-      setScannerReady(false);
-      setUserInteracted(false);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!open) {
-      // On modal close, clean up
-      cancelledRef.current = true;
-      animationCancelledRef.current = true;
       const s = scannerRef.current;
       scannerRef.current = null;
       if (s) {
@@ -79,100 +48,79 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
       setQrFound(false);
       setQrText(null);
       setErr(null);
-      setScannerReady(false);
-      setUserInteracted(false);
-      return;
-    }
+    };
+  }, []);
 
-    // On modal open, reset state but DON'T start scanner automatically
-    // User must click "Start Scanning" to grant camera access (iOS Safari requirement)
+  useEffect(() => {
+    if (!open) return;
     cancelledRef.current = false;
-    animationCancelledRef.current = false;
+    setErr(null);
     setQrFound(false);
     setQrText(null);
-    setErr(null);
     setScanProgress(0);
-    setScannerReady(false);
-    setUserInteracted(false);
-  }, [open]);
-
-  // Start scanner when user interacts (clicks the "Start Scanning" button)
-  useEffect(() => {
-    if (!open || userInteracted || scannerRef.current) return;
-    
-    // Critical: scanner.start() called synchronously (NO await)
-    // This is REQUIRED for iOS Safari - camera is accessed via user gesture
-    const scanner = new Html5Qrcode(SCAN_ELEMENT_ID, false);
-    scannerRef.current = scanner;
-
-    // Start scanner WITHOUT fixed qrbox - detects QR anywhere in the frame
-    // Proper error handler for debugging camera issues
-    scanner.start(
-      { facingMode: 'environment' },
-      {
-        fps: 10,
-        // Removed qrbox - scanner will detect QR anywhere in the video feed
-        aspectRatio: 1,
-      },
-      // Callback on QR code decoded
-      (decoded) => {
+    (async () => {
+      try {
+        const scanner = new Html5Qrcode(SCAN_ELEMENT_ID, false);
+        scannerRef.current = scanner;
+        // Fixed qrbox for iOS Safari camera stability
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1 },
+          (decoded) => {
+            if (cancelledRef.current) return;
+            setQrFound(true);
+            setQrText(decoded);
+            onScan(decoded);
+            try { scanner.stop(); } catch {}
+            try { scanner.clear(); } catch {}
+            onClose();
+          },
+          (error) => {
+            if (cancelledRef.current) return;
+            console.error('QR scanner error:', error);
+            setErr({ msg: String(error), key: 'qr.cameraError' });
+          }
+        );
+      } catch (e: any) {
         if (cancelledRef.current) return;
-        setQrFound(true);
-        setQrText(decoded);
-        onScan(decoded);
-        try { scanner.stop(); } catch { console.error('Error stopping scanner after scan'); }
-        try { scanner.clear(); } catch { console.error('Error clearing scanner after scan'); }
-        onClose();
-      },
-      // PROPER ERROR HANDLER - shows error to user and allows retry
-      (error) => {
-        if (cancelledRef.current) return;
-        console.error('QR scanner error:', error);
-        setErr({ msg: String(error), key: 'qr.cameraError' });
-        // After error, allow user to retry by keeping scannerReady true
-        setScannerReady(true);
+        console.error('QR scanner init error - name:', e.name, 'message:', e.message);
+        setErr({ msg: e?.message || String(e), key: 'qr.cameraError' });
       }
-    );
-
-    // Mark that scanner has been attempted (shows the video preview)
-    setScannerReady(true);
-  }, [open, userInteracted]);
-
-  // Scanning line animation when no QR is found
-  useEffect(() => {
-    if (!userInteracted || qrFound || !open) return;
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    if (!canvas || !video) return;
-
-    // Get dimensions once
-    const width = video.videoWidth;
-    const height = video.videoHeight;
-
-    const animate = () => {
-      // Critical: check cancellation before each frame
-      if (animationCancelledRef.current || cancelledRef.current || qrFound || !open) return;
-      // Clear canvas
-      const ctx = canvas.getContext('2d')!;
-      ctx.clearRect(0, 0, width, height);
-      // Draw scanning line progress
-      const progress = scanProgress;
-      ctx.fillStyle = 'rgba(139, 91, 246, 0.8)';
-      ctx.fillRect(0, progress * height, width, 4);
-      // Update progress - loop from 0 to 1
-      setScanProgress((p) => {
-        const next = p + 0.02;
-        return next > 1 ? 0 : next;
-      });
-      requestAnimationFrame(animate);
-    };
-
-    animate();
-    // Cleanup on unmount or when conditions change
+    })();
     return () => {
-      animationCancelledRef.current = true;
+      cancelledRef.current = true;
+      const s = scannerRef.current;
+      scannerRef.current = null;
+      if (s) {
+        try { s.stop(); } catch {}
+        try { s.clear(); } catch {}
+      }
     };
-  }, [userInteracted, qrFound, open]);
+  }, [open, onScan, onClose]);
+
+  // Scanning line animation when no QR is found - using canvas overlay
+  useEffect(() => {
+    if (!qrFound && open) {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+      if (!canvas || !video) return;
+
+      const ctx = canvas.getContext('2d')!;
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+
+      const animate = () => {
+        if (cancelledRef.current || qrFound || !open) return;
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = 'rgba(139, 91, 246, 0.8)';
+        ctx.fillRect(0, (scanProgress % 1) * height, width, 4);
+        setScanProgress((p) => (p + 0.02) % 1);
+        requestAnimationFrame(animate);
+      };
+
+      animate();
+    }
+  }, [qrFound, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -192,38 +140,16 @@ export default function QRScanner({ open, onClose, onScan }: Props) {
           </button>
         </div>
 
-        {/* Scanner interface */}
-        {scannerReady ? (
-          // Scanner is ready - show video preview with scanning line
-          <div className="relative">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className="w-full [&_video]:!w-full [&_video]:!rounded-xl"
-            />
-            <canvas
-              ref={canvasRef}
-              className="absolute inset-0 opacity-0"
-            />
-            
-            {/* QR frame animation - appears when QR is detected */}
-            {qrFound && qrText && (
-              <div className="absolute inset-0 rounded-2xl border4 border-indigo-600 animate-pulse opacity-90">
-                <div className="absolute -inset-2 rounded-2xl border2 border-indigo-500 animate-pulse opacity-75" />
-              </div>
-            )}
-          </div>
-        ) : (
-          // Scanner not yet started - show start button
-          <div className="min-h-[180px] flex items-center justify-center">
-            <button
-              onClick={() => setUserInteracted(true)}
-              className="inline-flex items-center justify-center rounded-xl bg-[#8b5cf6] px-6 py-3 text-white font-medium text-sm hover:bg-[#7c3aed] transition-colors"
-            >
-              <X size={20} className="mr-2" /> {t('qr.startScanning')}
-            </button>
-            <p className="text-xs text-[#B9B8BD] mt-2">Point camera at QR code</p>
+        <div className="overflow-hidden rounded-xl bg-black">
+          <div id={SCAN_ELEMENT_ID} className="w-full [&_video]:!w-full [&_video]:!rounded-xl" />
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 opacity-0"
+          /></div>
+
+        {qrFound && qrText && (
+          <div className="absolute inset-0 rounded-2xl border4 border-indigo-600 animate-pulse opacity-90">
+            <div className="absolute -inset-2 rounded-2xl border2 border-indigo-500 animate-pulse opacity-75" />
           </div>
         )}
 
